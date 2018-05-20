@@ -1,11 +1,7 @@
 #ifndef _ABSYNC_H_
 #define _ABSYNC_H_
 
-//#include "symbol.h"
-
-struct S_symbol_{};
-typedef struct S_symbol_ *S_symbol;
-
+#include "symbol.h"
 typedef int A_pos;
 
 typedef struct A_exp_ *A_exp;
@@ -20,10 +16,10 @@ typedef struct A_init_ *A_init;
 typedef struct A_stat_ *A_stat; 
 
 typedef enum{
-    A_and, A_not, A_xor, A_lshift, A_rshift,
+    A_and, A_not, A_xor, A_or, A_lshift, A_rshift,
     A_div, A_mod, A_mul, A_plus, A_minus,
     A_lt, A_gt, A_lte, A_gte, A_eq, A_neq,
-    A_logical_not, A_logical_and, A_logical_or,
+    A_log_not, A_log_and, A_log_or,
     A_three,
     A_assign, A_mula, A_diva, A_moda,
     A_plusa, A_minusa, A_lshifta, A_rshifta,
@@ -53,7 +49,11 @@ struct A_exp_
     A_pos pos;
     enum{
         //postfix
-        A_simple_exp,
+        A_id_exp,
+        A_intexp_exp,
+        A_floatexp_exp,
+        A_charexp_exp,
+        A_strexp_exp,
         A_subscript_exp,
         A_funccall_exp,
         A_dot_exp,
@@ -77,7 +77,11 @@ struct A_exp_
         A_seq_exp
     }kind;
     union{
-        S_symbol simple;
+        S_symbol id;
+        int intexp;
+        double floatexp;
+        char charexp;
+        char* strexp;
         struct{
             A_exp expr;
             A_exp subscript;
@@ -377,7 +381,11 @@ struct A_stat_
     }u;
 };
 
-A_exp _A_simple_exp(A_pos, S_symbol);
+A_exp _A_id_exp(A_pos, S_symbol);
+A_exp _A_intexp_exp(A_pos, int);
+A_exp _A_floatexp_exp(A_pos, double);
+A_exp _A_charexp_exp(A_pos, char);
+A_exp _A_strexp_exp(A_pos, char*);
 A_exp _A_subscript_exp(A_pos, A_exp, A_exp);
 A_exp _A_funccall_exp(A_pos, A_exp, A_exp);
 A_exp _A_dot_exp(A_pos, A_exp, S_symbol);

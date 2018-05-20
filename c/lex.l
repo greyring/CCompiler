@@ -1,13 +1,13 @@
 %{
+    #include "absync.h"
+    #include "y.tab.h"
     #include <stdio.h>
     #include <string.h>
     int charPos = 0;
     #define ADJ (charPos+=yyleng)
-    
-    union {int ival; char* sval; double fval;} yylval;
 
-    void cstrcpy(char* s){
-        if (yylval.sval != NULL) free(sval);
+    static void cstrcpy(char* s){
+        //if (yylval.sval != NULL) free(yylval.sval);
         int len, i;
         
         len = strlen(s);
@@ -98,7 +98,6 @@ lshift             "<<"
 rshift             ">>"
 
 dot                "\."
-wave               "~"
 
 arrow              "->"
 
@@ -106,7 +105,7 @@ double_plus        "++"
 double_minus       "--"
 
 bit_and            "&"
-bit_not            "!"
+bit_not            "~"
 bit_xor            "^"
 bit_or             "|"
 
@@ -123,6 +122,7 @@ cmp_more_eq        ">="
 cmp_eq             "=="
 cmp_neq            "!="
 
+log_not            "!"
 log_and            "&&"
 log_or             "||"
 
@@ -211,9 +211,9 @@ default          .
 {int_dec_const}     {ADJ; sscanf(yytext, "%d", &yylval.ival); return INT_DEC_CONST;}
 {int_oct_const}     {ADJ; sscanf(yytext, "%o", &yylval.ival); return INT_OCT_CONST;}
 {int_hex_const}     {ADJ; sscanf(yytext, "%x", &yylval.ival); return INT_HEX_CONST;}
-{flt_dec_const}     {ADJ; sscanf(yytext, "%f", &yylval.fval); return FLT_DEC_CONST;}
+{flt_dec_const}     {ADJ; sscanf(yytext, "%lf", &yylval.fval); return FLT_DEC_CONST;}
 {flt_hex_const}     {ADJ; return FLT_HEX_CONST;}
-{char_const}        {ADJ; cstrcpy(yytext); return CHAR_CONST;}
+{char_const}        {ADJ; yylval.cval = yytext[strlen(yytext)-1]; return CHAR_CONST;}
 
 
 {str_literal}       {ADJ; cstrcpy(yytext); return STR_LITERAL;}
@@ -229,7 +229,6 @@ default          .
 {rshift}            {ADJ; return RSHIFT;}
 
 {dot}               {ADJ; return DOT;}
-{wave}              {ADJ; return WAVE;}
 
 {arrow}             {ADJ; return ARROW;}
 
@@ -254,6 +253,7 @@ default          .
 {cmp_eq}            {ADJ; return CMP_EQ;}
 {cmp_neq}           {ADJ; return CMP_NEQ;}
 
+{log_not}           {ADJ; return LOG_NOT;}
 {log_and}           {ADJ; return LOG_AND;}
 {log_or}            {ADJ; return LOG_OR;}
 
@@ -280,11 +280,11 @@ default          .
 
 
 
-{blank_space}       {ADJ; return BLANK_SPACE;}
-{enter}             {ADJ; return ENTER;}
-{cline}             {ADJ; return CLINE;}
-{tab}               {ADJ; return TAB;}
-{default}           {ADJ; return DEFAULT;}
+{blank_space}       {ADJ;}
+{enter}             {ADJ;}
+{cline}             {ADJ;}
+{tab}               {ADJ;}
+{default}           {ADJ;printf("error in lex\n");}
 %%
 
 int yywrap(void){
