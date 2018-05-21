@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 extern FILE *yyin;
-extern A_exp root;
+extern A_stat root;
 extern int yyparse(void);
 
 int main(int argc, char *args[])

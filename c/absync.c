@@ -44,6 +44,7 @@ A_2(param, seq, A_param, param, A_param, next);
 A_2(param, dec, A_spec, spec, A_dec, dec);
 
 A_1(dec, simple, S_symbol);
+A_2(dec, dec, A_spec, spec, A_dec, dec);
 A_2(dec, seq, A_dec, dec, A_dec, next);
 A_2(dec, init, A_dec, dec, A_init, init);
 A_2(dec, bit, A_dec, dec, A_exp, const_exp);

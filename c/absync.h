@@ -2,7 +2,6 @@
 #define _ABSYNC_H_
 
 #include "symbol.h"
-typedef int A_pos;
 
 typedef struct A_exp_ *A_exp;
 typedef struct A_spec_ *A_spec;
@@ -16,14 +15,14 @@ typedef struct A_init_ *A_init;
 typedef struct A_stat_ *A_stat; 
 
 typedef enum{
-    A_and, A_not, A_xor, A_or, A_lshift, A_rshift,
-    A_div, A_mod, A_mul, A_plus, A_minus,
-    A_lt, A_gt, A_lte, A_gte, A_eq, A_neq,
-    A_log_not, A_log_and, A_log_or,
-    A_three,
-    A_assign, A_mula, A_diva, A_moda,
-    A_plusa, A_minusa, A_lshifta, A_rshifta,
-    A_anda, A_xora, A_ora 
+    A_AND, A_NOT, A_XOR, A_OR, A_LSHIFT, A_RSHIFT,
+    A_DIV, A_MOD, A_MUL, A_PLUS, A_MINUS,
+    A_LT, A_GT, A_LTE, A_GTE, A_EQ, A_NEQ,
+    A_LOGNOT, A_LOGAND, A_LOGOR,
+    A_THREE,
+    A_ASSIGN, A_MULA, A_DIVA, A_MODA,
+    A_PLUSA, A_MINUSA, A_LSHIFTA, A_RSHIFTA,
+    A_ANDA, A_XORA, A_ORA 
 }A_op;
 
 typedef enum{
@@ -43,6 +42,10 @@ typedef enum{
 typedef enum{
     A_INLINE
 }A_func_type;
+
+//#include "y.tab.h"
+//typedef struct YYLTYPE A_pos;
+typedef int A_pos;
 
 struct A_exp_
 {
@@ -94,7 +97,7 @@ struct A_exp_
             A_exp expr;
             S_symbol id;
         }dot, point;
-        A_exp postpp, postmm, prepp, premm, sizeof_unary, aaa;
+        A_exp postpp, postmm, prepp, premm, sizeof_unary;
         struct{
             A_type_name type_name;
             A_init init_list;
@@ -218,6 +221,7 @@ struct A_dec_
     A_pos pos;
     enum{
         A_simple_dec,
+        A_dec_dec,
         A_seq_dec,
         A_init_dec,
         A_bit_dec,
@@ -229,6 +233,10 @@ struct A_dec_
     }kind;
     union{
         S_symbol simple;
+        struct{
+            A_spec spec;
+            A_dec dec;
+        }dec;
         struct{
             A_dec dec;
             A_dec next;
@@ -423,6 +431,7 @@ A_param _A_seq_param(A_pos, A_param, A_param);
 A_param _A_dec_param(A_pos, A_spec, A_dec);
 
 A_dec _A_simple_dec(A_pos, S_symbol);
+A_dec _A_dec_dec(A_pos, A_spec, A_dec);
 A_dec _A_seq_dec(A_pos, A_dec, A_dec);
 A_dec _A_init_dec(A_pos, A_dec, A_init);
 A_dec _A_bit_dec(A_pos, A_dec, A_exp);
@@ -492,7 +501,7 @@ A_##type _A_##name##_##type (A_pos pos, atype a, btype b)\
 }
 
 #define A_3(type, name, atype, a, btype, b, ctype, c) \
-A_##type _A_##name##_exp (A_pos pos, atype a, btype b, ctype c)\
+A_##type _A_##name##_##type (A_pos pos, atype a, btype b, ctype c)\
 {\
     A_##type p = checked_malloc(sizeof(*p));\
     p->kind = A_##name##_##type;\
@@ -504,7 +513,7 @@ A_##type _A_##name##_exp (A_pos pos, atype a, btype b, ctype c)\
 }
 
 #define A_4(type, name, atype, a, btype, b, ctype, c, dtype, d) \
-A_##type _A_##name##_exp (A_pos pos, atype a, btype b, ctype c, dtype d)\
+A_##type _A_##name##_##type (A_pos pos, atype a, btype b, ctype c, dtype d)\
 {\
     A_##type p = checked_malloc(sizeof(*p));\
     p->kind = A_##name##_##type;\

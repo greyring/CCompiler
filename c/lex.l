@@ -5,6 +5,7 @@
     #include <string.h>
     int charPos = 0;
     #define ADJ (charPos+=yyleng)
+    //#define ADJ 
 
     static void cstrcpy(char* s){
         //if (yylval.sval != NULL) free(yylval.sval);
@@ -17,7 +18,14 @@
             yylval.sval[i] = s[i+1];
         }
     }
+    #define YY_USER_ACTION if (yylloc.first_line != yylineno) \
+                                yylloc.first_column = yylloc.last_column = 0;\
+                           else\
+                                yylloc.first_column = yylloc.last_column += yyleng;\
+                           yylloc.first_line = yylloc.last_line = yylineno;
 %}
+
+%option yylineno
 
 /*
     keyword
@@ -98,6 +106,7 @@ lshift             "<<"
 rshift             ">>"
 
 dot                "\."
+dollar             "$"
 
 arrow              "->"
 
@@ -229,6 +238,7 @@ default          .
 {rshift}            {ADJ; return RSHIFT;}
 
 {dot}               {ADJ; return DOT;}
+{dollar}            {ADJ; return DOLLAR;}
 
 {arrow}             {ADJ; return ARROW;}
 

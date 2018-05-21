@@ -8,11 +8,9 @@ lex.yy.o:lex.yy.c y.tab.h absync.h symbol.h util.h
 	$(CC) -c $< -o $@
 lex.yy.c:lex.l y.tab.h
 	lex $<
-y.tab.h:parser.y
-	byacc -d $<
-y.tab.c:parser.y
-	byacc $<
-absync.o:absync.c absync.h symbol.h util.h
+y.tab.h y.tab.c:parser.y
+	bison -b y -d $<
+absync.o:absync.c absync.h symbol.h util.h y.tab.h
 	$(CC) -c $< -o $@
 symbol.o:symbol.c symbol.h util.h
 	$(CC) -c $< -o $@
