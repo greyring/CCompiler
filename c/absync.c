@@ -1,6 +1,7 @@
 #include "symbol.h"
 #include "absync.h"
 #include "util.h"
+#include <string.h>
 
 A_1(exp, id, S_symbol);
 A_1(exp, intexp, int);

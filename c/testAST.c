@@ -129,9 +129,6 @@ void TA_exp(A_exp in){
     dinc;
     char *ss = (char*)checked_malloc(sizeof(char) * 100);
     switch(in->kind){
-        case A_id_exp:
-            inc("A_id_exp");
-            break;
         case A_intexp_exp:
             sprintf(ss, "A_intexp_exp : %d", in->u.intexp);
             inc(ss); free(ss);
@@ -148,6 +145,7 @@ void TA_exp(A_exp in){
             sprintf(ss, "A_strexp_exp : %s", in->u.strexp);
             inc(ss);
             break;
+        TA_n1(id, exp, symbol);
         TA_2(subscript, exp, exp, expr, exp, subscript);
         TA_2(funccall, exp, exp, expr, exp, args);
         TA_2(dot, exp, exp, expr, symbol, id);

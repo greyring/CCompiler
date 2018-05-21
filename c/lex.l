@@ -1,12 +1,27 @@
 %{
     #include "absync.h"
     #include "y.tab.h"
+    #include "util.h"
     #include <stdio.h>
     #include <string.h>
     int charPos = 0;
     #define ADJ (charPos+=yyleng)
     //#define ADJ 
 
+    static void cstrcpy(char* s){
+        int len;
+        
+        len = strlen(s);
+        yylval.sval = checked_malloc(sizeof(char) * len-1);
+        yylval.sval[len-2] = '\0';
+        for (int i=0; i<len-2; i++){
+            yylval.sval[i] = s[i+1];
+        }
+    }
+    static void cstrcpy2(char* s){
+        yylval.sval = checked_malloc(sizeof(char) * strlen(s) + 1);
+        strcpy(yylval.sval, s);
+    }
     #define YY_USER_ACTION if (yylloc.first_line != yylineno) \
                                 yylloc.first_column = yylloc.last_column = 0;\
                            else\
@@ -67,7 +82,7 @@ identifier       [a-zA-Z_][a-zA-Z0-9_]*
 /*
     constant
 */
-int_dec_const    [1-9][0-9]*((u|U)?|(l|L)?|(ll|LL)?)
+int_dec_const    0|[1-9][0-9]*((u|U)?|(l|L)?|(ll|LL)?)
 int_oct_const    0(0|([1-7][0-7]*))((u|U)?|(l|L)?|(ll|LL)?)
 int_hex_const    ("0x"|"0X")(0|([1-9a-fA-F][0-9a-fA-F]*))((u|U)?|(l|L)?|(ll|LL)?)
 
@@ -203,7 +218,7 @@ default          .
 {key_ul_Imaginary}  {ADJ; return KEY_UL_IMAGINARY;}
 
 
-{identifier}        {ADJ; yylval.sval = yytext; return IDENTIFIER;}
+{identifier}        {ADJ; cstrcpy2(yytext); return IDENTIFIER;}
 
 
 {int_dec_const}     {ADJ; sscanf(yytext, "%d", &yylval.ival); return INT_DEC_CONST;}
@@ -211,10 +226,10 @@ default          .
 {int_hex_const}     {ADJ; sscanf(yytext, "%x", &yylval.ival); return INT_HEX_CONST;}
 {flt_dec_const}     {ADJ; sscanf(yytext, "%lf", &yylval.fval); return FLT_DEC_CONST;}
 {flt_hex_const}     {ADJ; return FLT_HEX_CONST;}
-{char_const}        {ADJ; yylval.cval = yytext[strlen(yytext)-1]; return CHAR_CONST;}
+{char_const}        {ADJ; yylval.cval = yytext[strlen(yytext)-2]; return CHAR_CONST;}
 
 
-{str_literal}       {ADJ; yylval.sval = yytext; return STR_LITERAL;}
+{str_literal}       {ADJ; cstrcpy(yytext); return STR_LITERAL;}
 
 
 {lparen}            {ADJ; return LPAREN;}
@@ -283,7 +298,7 @@ default          .
 {enter}             {ADJ;}
 {cline}             {ADJ;}
 {tab}               {ADJ;}
-{default}           {ADJ;printf("error in lex\n");}
+{default}           {ADJ; printf("error in lex: %s\n", yytext);}
 %%
 
 int yywrap(void){
