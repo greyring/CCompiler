@@ -10,10 +10,10 @@ extern int charPos;
 //#define charPos yylloc
 void yyerror(const char *);
 int yylex(void);
-A_stat root;
+A_def root;
 %}
 
-%union {int ival; char cval; char* sval; double fval; A_op op; A_storage_type storage_type; A_prim_type prim_type; A_qual_type qual_type; A_func_type func_type; A_exp exp; A_spec spec; A_type type; A_pointer pointer_; A_param param; A_dec dec; A_type_name type_name_; A_designator designator_; A_init init; A_stat stat;}
+%union {int ival; char cval; char* sval; double fval; A_op op; A_storage_type storage_type; A_prim_type prim_type; A_qual_type qual_type; A_func_type func_type; A_exp exp; A_spec spec; A_type type; A_pointer pointer_; A_param param; A_dec dec; A_declaration declaration; A_type_name type_name_; A_designator designator_; A_init init; A_stat stat; A_def def;}
 
 %token KEY_AUTO KEY_BREAK KEY_CASE KEY_CHAR KEY_CONST KEY_CONTINUE KEY_DEFAULT KEY_DO KEY_DOUBLE KEY_ELSE KEY_ENUM KEY_EXTERN KEY_FLOAT KEY_FOR KEY_GOTO KEY_IF KEY_INLINE KEY_INT KEY_LONG KEY_REGISTER KEY_RESTRICT KEY_RETURN KEY_SHORT KEY_SIGNED KEY_SIZEOF KEY_STATIC KEY_STRUCT KEY_SWITCH KEY_TYPEDEF KEY_UNION KEY_UNSIGNED KEY_VOID KEY_VOLATILE KEY_WHILE KEY_UL_BOOL KEY_UL_COMPLEX KEY_UL_IMAGINARY LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE LSHIFT RSHIFT DOT DOLLAR ARROW DOUBLE_PLUS DOUBLE_MINUS BIT_AND BIT_NOT BIT_XOR BIT_OR OPT_TIMES OPT_PLUS OPT_MINUS OPT_DIV OPT_MOD CMP_LESS CMP_MORE CMP_LESS_EQ CMP_MORE_EQ CMP_EQ CMP_NEQ LOG_NOT LOG_AND LOG_OR QUEST_MARK COLON_MARK SEMIC_MARK ELLIP_MARK COMMA_MARK CAL_EQ CAL_TIMES_EQ CAL_DIV_EQ CAL_MOD_EQ CAL_PLUS_EQ CAL_MINUS_EQ CAL_LEFT_EQ CAL_RIGHT_EQ CAL_AND_EQ CAL_XOR_EQ CAL_OR_EQ SHARP_MARK DOUBLE_SHARP
 
@@ -23,7 +23,8 @@ A_stat root;
 %token <cval> CHAR_CONST 
 %type  <exp> primary_expression postfix_expression unary_expression cast_expression multiplicative_expression additive_expression shift_expression relational_expression equality_expression AND_expression XOR_expression OR_expression logical_AND_expression logical_OR_expression conditional_expression assignment_expression expression constant_expression identifier_list
 %type <op> unary_operator assignment_operator
-%type <dec> declaration init_declarator_list init_declarator struct_declaration_list struct_declaration struct_declarator_list struct_declarator declarator direct_declarator abstract_declarator direct_abstract_declarator
+%type <dec> init_declarator_list init_declarator struct_declarator_list struct_declarator declarator direct_declarator abstract_declarator direct_abstract_declarator
+%type <declaration> declaration struct_declaration_list struct_declaration declaration_list
 %type <spec> declaration_specifiers storage_class_specifier type_specifier specifier_qualifier_list type_qualifier function_specifier type_qualifier_list
 %type <type> struct_or_union_specifier 
 %type <type> enum_specifier typedef_name
@@ -33,14 +34,15 @@ A_stat root;
 %type <param> parameter_type_list parameter_list parameter_declaration
 %type <type_name_> type_name
 %type <designator_> designation designator_list designator
-%type <stat> start statement labeled_statement compound_statement block_item_list block_item expression_statement selection_statement iteration_statement jump_statement
+%type <stat> statement labeled_statement compound_statement block_item_list block_item expression_statement selection_statement iteration_statement jump_statement
+%type <def> start translation_unit external_declaration function_definition
 
 %nonassoc LOWER_THEN_ELSE
 %nonassoc KEY_ELSE
 
 %%
 start:
-    block_item_list {root = $$ = $1;}
+    translation_unit {root = $$ = $1;}
     ;
 primary_expression:
       IDENTIFIER            {$$ = _A_id_exp(charPos, _S_symbol($1));}
@@ -168,8 +170,8 @@ constant_expression:
 
 
 declaration:                           
-    declaration_specifiers init_declarator_list SEMIC_MARK  {$$ = _A_dec_dec(charPos, $1, $2);}
-    | declaration_specifiers SEMIC_MARK                     {$$ = _A_dec_dec(charPos, $1, NULL);}
+    declaration_specifiers init_declarator_list SEMIC_MARK  {$$ = _A_simple_declaration(charPos, $1, $2);}
+    | declaration_specifiers SEMIC_MARK                     {$$ = _A_simple_declaration(charPos, $1, NULL);}
     ;
 declaration_specifiers:
       storage_class_specifier declaration_specifiers    {$$ = _A_seq_spec(charPos, $1, $2);}
@@ -220,10 +222,10 @@ struct_or_union:
     ;
 struct_declaration_list:
       struct_declaration                            {$$ = $1;}
-    | struct_declaration_list struct_declaration    {$$ = _A_seq_dec(charPos, $1, $2);}
+    | struct_declaration_list struct_declaration    {$$ = _A_seq_declaration(charPos, $1, $2);}
     ;
 struct_declaration:
-    specifier_qualifier_list struct_declarator_list SEMIC_MARK  {$$ = _A_dec_dec(charPos, $1, $2);}
+    specifier_qualifier_list struct_declarator_list SEMIC_MARK  {$$ = _A_simple_declaration(charPos, $1, $2);}
     ;
 specifier_qualifier_list:
       type_specifier specifier_qualifier_list   {$$ = _A_seq_spec(charPos, $1, $2);}
@@ -412,6 +414,25 @@ jump_statement:
     | KEY_BREAK SEMIC_MARK              {$$ = _A_breakstat_stat(charPos);}
     | KEY_RETURN expression SEMIC_MARK  {$$ = _A_returnstat_stat(charPos, $2);}
     | KEY_RETURN SEMIC_MARK             {$$ = _A_returnstat_stat(charPos, NULL);}
+    ;
+
+
+
+translation_unit:
+      external_declaration                                                      {$$ = $1;}
+    | translation_unit external_declaration                                     {$$ = _A_seq_def(charPos, $1, $2);}
+    ;
+external_declaration:
+      function_definition                                                       {$$ = $1;}
+    | declaration                                                               {$$ = _A_simple_def(charPos, $1);}
+    ;
+function_definition:
+      declaration_specifiers declarator declaration_list compound_statement     {$$ = _A_func_def(charPos, $1, $2, $3, $4);}
+    | declaration_specifiers declarator compound_statement                      {$$ = _A_func_def(charPos, $1, $2, NULL, $3);}
+    ;
+declaration_list:
+      declaration                                                               {$$ = $1;}
+    | declaration_list declaration                                              {$$ = _A_seq_declaration(charPos, $1, $2);}
     ;
 %%
 void yyerror(const char *s)

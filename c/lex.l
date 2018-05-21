@@ -7,17 +7,6 @@
     #define ADJ (charPos+=yyleng)
     //#define ADJ 
 
-    static void cstrcpy(char* s){
-        //if (yylval.sval != NULL) free(yylval.sval);
-        int len, i;
-        
-        len = strlen(s);
-        yylval.sval = malloc(sizeof(char) * len-1);
-        yylval.sval[len-2] = '\0';
-        for (int i=0; i<len-2; i++){
-            yylval.sval[i] = s[i+1];
-        }
-    }
     #define YY_USER_ACTION if (yylloc.first_line != yylineno) \
                                 yylloc.first_column = yylloc.last_column = 0;\
                            else\
@@ -214,7 +203,7 @@ default          .
 {key_ul_Imaginary}  {ADJ; return KEY_UL_IMAGINARY;}
 
 
-{identifier}        {ADJ; cstrcpy(yytext); return IDENTIFIER;}
+{identifier}        {ADJ; yylval.sval = yytext; return IDENTIFIER;}
 
 
 {int_dec_const}     {ADJ; sscanf(yytext, "%d", &yylval.ival); return INT_DEC_CONST;}
@@ -225,7 +214,7 @@ default          .
 {char_const}        {ADJ; yylval.cval = yytext[strlen(yytext)-1]; return CHAR_CONST;}
 
 
-{str_literal}       {ADJ; cstrcpy(yytext); return STR_LITERAL;}
+{str_literal}       {ADJ; yylval.sval = yytext; return STR_LITERAL;}
 
 
 {lparen}            {ADJ; return LPAREN;}

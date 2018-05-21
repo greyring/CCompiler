@@ -4,7 +4,7 @@
 #include <stdio.h>
 
 extern FILE *yyin;
-extern A_stat root;
+extern A_def root;
 extern int yyparse(void);
 
 int main(int argc, char *args[])
@@ -13,8 +13,18 @@ int main(int argc, char *args[])
     char s[100];
     scanf("%s", s);
     yyin = fopen(s, "r");
+    if (!yyin)
+    {
+        printf("File open failed\n");
+        return -1;
+    }
     result = yyparse();
-    TA_stat(root);
+    if (result)
+    {
+        printf("parse failed\n");
+        return -1;
+    }
+    TA_def(root);
     printf("%s\n", TA_getRes());
     return result;
 }

@@ -3,16 +3,20 @@
 
 #include "symbol.h"
 
+typedef int A_pos;
+
 typedef struct A_exp_ *A_exp;
 typedef struct A_spec_ *A_spec;
 typedef struct A_type_ *A_type;
 typedef struct A_pointer_ *A_pointer;
 typedef struct A_param_ *A_param;
-typedef struct A_dec_ *A_dec;
+typedef struct A_dec_ *A_dec;//declator
+typedef struct A_declaration_ *A_declaration;
 typedef struct A_type_name_ *A_type_name;
 typedef struct A_designator_ *A_designator;
 typedef struct A_init_ *A_init;
 typedef struct A_stat_ *A_stat; 
+typedef struct A_def_  *A_def;
 
 typedef enum{
     A_AND, A_NOT, A_XOR, A_OR, A_LSHIFT, A_RSHIFT,
@@ -42,10 +46,6 @@ typedef enum{
 typedef enum{
     A_INLINE
 }A_func_type;
-
-//#include "y.tab.h"
-//typedef struct YYLTYPE A_pos;
-typedef int A_pos;
 
 struct A_exp_
 {
@@ -170,7 +170,7 @@ struct A_type_
         struct{
             A_prim_type struct_union;
             S_symbol id;
-            A_dec dec_list;
+            A_declaration dec_list;
         }struct_union;
         struct{
             S_symbol id;
@@ -221,7 +221,6 @@ struct A_dec_
     A_pos pos;
     enum{
         A_simple_dec,
-        A_dec_dec,
         A_seq_dec,
         A_init_dec,
         A_bit_dec,
@@ -233,10 +232,6 @@ struct A_dec_
     }kind;
     union{
         S_symbol simple;
-        struct{
-            A_spec spec;
-            A_dec dec;
-        }dec;
         struct{
             A_dec dec;
             A_dec next;
@@ -266,6 +261,25 @@ struct A_dec_
             A_dec dec;
             A_exp id_list;
         }funcid;
+    }u;
+};
+
+struct A_declaration_
+{
+    A_pos pos;
+    enum{
+        A_simple_declaration,
+        A_seq_declaration
+    }kind;
+    union{
+        struct{
+            A_spec spec;
+            A_dec  dec;
+        }simple;
+        struct{
+            A_declaration declaration;
+            A_declaration next;
+        }seq;
     }u;
 };
 
@@ -338,7 +352,6 @@ struct A_stat_
         A_label_stat,
         A_casestat_stat,
         A_defaultstat_stat,
-        A_compound_stat,
         A_ifstat_stat,
         A_switchstat_stat,
         A_whilestat_stat,
@@ -352,7 +365,7 @@ struct A_stat_
     }kind;
     union{
         A_exp exp;
-        A_dec dec;
+        A_declaration dec;
         struct{
             A_stat stat;
             A_stat next;
@@ -380,12 +393,35 @@ struct A_stat_
             A_stat stat;
         }forexp;
         struct{
-            A_dec dec;
+            A_declaration dec;
             A_exp exp_2, exp_3;
             A_stat stat;
         }fordec;
         S_symbol gotostat;
         A_exp returnstat;
+    }u;
+};
+
+struct A_def_
+{
+    A_pos pos;
+    enum{
+        A_simple_def,
+        A_seq_def,
+        A_func_def
+    }kind;
+    union{
+        struct{
+            A_def def;
+            A_def next;
+        }seq;
+        A_declaration simple;
+        struct{
+            A_spec spec;
+            A_dec func;
+            A_declaration args;
+            A_stat stat;
+        }func;
     }u;
 };
 
@@ -414,7 +450,7 @@ A_exp _A_seq_exp(A_pos, A_exp, A_exp);
 
 A_type _A_simple_type(A_pos, A_prim_type);
 A_type _A_typeid_type(A_pos, S_symbol);
-A_type _A_struct_union_type(A_pos, A_prim_type, S_symbol, A_dec);
+A_type _A_struct_union_type(A_pos, A_prim_type, S_symbol, A_declaration);
 A_type _A_enumtype_type(A_pos, S_symbol, A_init);
 
 A_spec _A_storage_spec(A_pos, A_storage_type);
@@ -431,7 +467,6 @@ A_param _A_seq_param(A_pos, A_param, A_param);
 A_param _A_dec_param(A_pos, A_spec, A_dec);
 
 A_dec _A_simple_dec(A_pos, S_symbol);
-A_dec _A_dec_dec(A_pos, A_spec, A_dec);
 A_dec _A_seq_dec(A_pos, A_dec, A_dec);
 A_dec _A_init_dec(A_pos, A_dec, A_init);
 A_dec _A_bit_dec(A_pos, A_dec, A_exp);
@@ -440,6 +475,9 @@ A_dec _A_array_dec(A_pos, A_dec, A_exp);
 A_dec _A_array_proto_dec(A_pos, A_dec);
 A_dec _A_func_dec(A_pos, A_dec, A_param);
 A_dec _A_funcid_dec(A_pos, A_dec, A_exp);
+
+A_declaration _A_simple_declaration(A_pos, A_spec, A_dec);
+A_declaration _A_seq_declaration(A_pos, A_declaration, A_declaration);
 
 A_type_name _A_simple_type_name(A_pos, A_spec, A_dec);
 
@@ -454,7 +492,7 @@ A_init _A_designation_init(A_pos, A_designator, A_init);
 
 
 A_stat _A_exp_stat(A_pos, A_exp);
-A_stat _A_dec_stat(A_pos, A_dec);
+A_stat _A_dec_stat(A_pos, A_declaration);
 A_stat _A_seq_stat(A_pos, A_stat, A_stat);
 A_stat _A_label_stat(A_pos, S_symbol, A_stat);
 A_stat _A_casestat_stat(A_pos, A_exp, A_stat);
@@ -464,11 +502,15 @@ A_stat _A_switchstat_stat(A_pos, A_exp, A_stat);
 A_stat _A_whilestat_stat(A_pos, A_exp, A_stat);
 A_stat _A_dowhile_stat(A_pos, A_stat, A_exp);
 A_stat _A_forexp_stat(A_pos, A_exp, A_exp, A_exp, A_stat);
-A_stat _A_fordec_stat(A_pos, A_dec, A_exp, A_exp, A_stat);
+A_stat _A_fordec_stat(A_pos, A_declaration, A_exp, A_exp, A_stat);
 A_stat _A_gotostat_stat(A_pos, S_symbol);
 A_stat _A_continuestat_stat(A_pos);
 A_stat _A_breakstat_stat(A_pos);
 A_stat _A_returnstat_stat(A_pos, A_exp);
+
+A_def _A_simple_def(A_pos, A_declaration);
+A_def _A_seq_def(A_pos, A_def, A_def);
+A_def _A_func_def(A_pos, A_spec, A_dec, A_declaration, A_stat);
 
 #define A_0(type, name) \
 A_##type _A_##name##_##type (A_pos pos)\
