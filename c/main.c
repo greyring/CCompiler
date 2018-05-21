@@ -1,4 +1,5 @@
 #include "absync.h"
+#include "testAST.h"
 #include "y.tab.h"
 #include <stdio.h>
 
@@ -13,5 +14,7 @@ int main(int argc, char *args[])
     scanf("%s", s);
     yyin = fopen(s, "r");
     result = yyparse();
+    TA_stat(root);
+    printf("%s\n", TA_getRes());
     return result;
 }
