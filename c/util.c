@@ -1,13 +1,10 @@
 #include "util.h"
 #include <stdio.h>
+#include <assert.h>
 
 void * checked_malloc(size_t size)
 {
     void * temp = malloc(size);
-    if (!temp)
-    {
-        printf("ERROR: Malloc failed!\n");
-        exit(-1);
-    }
+    assert(temp);
     return temp;
 }
