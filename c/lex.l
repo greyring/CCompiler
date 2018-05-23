@@ -171,6 +171,10 @@ double_sharp       "##"
 /*
     others
 */
+annotation_line  "//"[^\n]*
+annotation_lines "/*"([^\*]|(\*)*[^\*/])*(\*)*"*/" 
+multiline        "\\"" ""\n"
+
 blank_space      " "
 enter            "\n"
 cline            "\r"
@@ -293,7 +297,9 @@ default          .
 {double_sharp}      {ADJ; return DOUBLE_SHARP;}
 
 
-
+{annotation_line}   {ADJ;}
+{annotation_lines}  {ADJ;}
+{multiline}         {ADJ;}
 {blank_space}       {ADJ;}
 {enter}             {ADJ;}
 {cline}             {ADJ;}

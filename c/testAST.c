@@ -78,7 +78,7 @@ void clearLog(){
 }
 
 char* gstr(char* a){
-    char* b = (char*)checked_malloc(sizeof(char) * (strlen(a) + depth + 1));
+    char* b = (char*)checked_malloc(sizeof(char) * (strlen(a) + depth + 5));
     for (int i=0; i<depth-1; i++){
         b[i] = '\t';
         b[i+1] = '\0';
@@ -89,8 +89,8 @@ char* gstr(char* a){
 }
 
 void inc(char* a){
-    a = gstr(a);
-    int len = strlen(a);
+    char* b = gstr(a);
+    int len = strlen(b);
     if (llog.nlen + len >= llog.length){
         char* nstr = (char*)checked_malloc(sizeof(char) * (llog.length + len + 1000 +1));
         if (llog.str)
@@ -98,8 +98,9 @@ void inc(char* a){
         llog.length = llog.length + len + 1000;
         free(llog.str); llog.str = nstr;
     }
-    strcat(llog.str, a);
-    free(a);
+    strcat(llog.str, b);
+    llog.nlen = strlen(llog.str);
+    free(b);
 }
 
 char *TA_getRes(){
@@ -327,6 +328,10 @@ void TA_func_type(A_func_type in){
 }
 
 void TA_symbol(S_symbol in){
+    if (in->name == NULL) {
+        inc("S_symbol : NULL");
+        return;
+    }
     char *ss = (char*)checked_malloc(sizeof(in->name) + 1);
     sprintf(ss, "S_symbol : %s", in->name);
     inc(ss); free(ss);

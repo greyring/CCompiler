@@ -1,7 +1,8 @@
-int main(int argc, char * argv[])
-{
-    int a;
-    printf("Hello World!\n");
-    return -1;
+int main(){
+    int a = 100;
+    while (a--){
+        int b = a + 1;
+    }
+    int c = a++;
 }
 
