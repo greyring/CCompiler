@@ -9,7 +9,7 @@
 static S_symbol hashtable[S_SIZE];//give each string an address
 static struct S_symbol_ marksym = {"<mark>", 0};
 
-static S_symbol insert(char* name, S_symbol next)
+static S_symbol insert(string name, S_symbol next)
 {
     S_symbol s=checked_malloc(sizeof(*s));
     s->name=name; 
@@ -26,7 +26,7 @@ static unsigned int hash(char *s0)
     return h;
 }
 
-S_symbol _S_symbol(char *name)
+S_symbol _S_symbol(string name)
 {
     int index;
     S_symbol syms, sym;

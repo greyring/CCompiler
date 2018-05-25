@@ -81,7 +81,7 @@ struct A_exp_
     }kind;
     union{
         S_symbol id;
-        int intexp;
+        int intexp;//todo
         double floatexp;
         char charexp;
         char* strexp;

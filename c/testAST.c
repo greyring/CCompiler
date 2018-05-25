@@ -328,7 +328,7 @@ void TA_func_type(A_func_type in){
 }
 
 void TA_symbol(S_symbol in){
-    if (in->name == NULL) {
+    if (in == NULL) {
         inc("S_symbol : NULL");
         return;
     }

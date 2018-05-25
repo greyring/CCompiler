@@ -3,6 +3,10 @@
 
 #include <stdlib.h>
 
+typedef char* string;
 void * checked_malloc(size_t size);
+
+string String(char* s);
+
 
 #endif

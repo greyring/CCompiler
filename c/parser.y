@@ -199,7 +199,8 @@ storage_class_specifier:
     | KEY_REGISTER      {$$ = _A_storage_spec(charPos, A_REGISTER);}
     ;
 type_specifier:
-      KEY_CHAR                      {$$ = _A_type_spec(charPos, _A_simple_type(charPos, A_CHAR));}
+      KEY_VOID                      {$$ = _A_type_spec(charPos, _A_simple_type(charPos, A_VOID));}
+    | KEY_CHAR                      {$$ = _A_type_spec(charPos, _A_simple_type(charPos, A_CHAR));}
     | KEY_SHORT                     {$$ = _A_type_spec(charPos, _A_simple_type(charPos, A_SHORT));}
     | KEY_INT                       {$$ = _A_type_spec(charPos, _A_simple_type(charPos, A_INT));}
     | KEY_LONG                      {$$ = _A_type_spec(charPos, _A_simple_type(charPos, A_LONG));}
