@@ -1,15 +1,21 @@
 #include "env.h"
 #include "translate.h"
 #include "semant.h"
+#include "absync.h"
 
-struct expty trexp2expty(Tr_exp exp, Ty_ty ty)
+
+//建立一个expty
+expty 
+expTy(Tr_exp exp, Ty_ty ty)
 {
-    struct expty e;
-    e.exp = exp; e.ty = ty;
-    return e;
+    struct expty_ e;
+    e.exp = exp; 
+    e.ty = ty;
+    return &e;
 }
 
-static struct expty transExp(A_exp a)
+static struct 
+expty_ transExp(A_exp a)
 {
     switch (a->kind)
     {
@@ -60,7 +66,8 @@ static struct expty transExp(A_exp a)
     }
 }
 
-static int noStoreType(A_spec a, A_storage_type type)
+static int 
+noStoreType(A_spec a, A_storage_type type)
 {
     int res = 0;
     if (!a) return 1;
@@ -79,7 +86,8 @@ static int noStoreType(A_spec a, A_storage_type type)
     return res;
 }
 
-F_fragList transDef(A_def a)
+F_fragList 
+transDef(A_def a)
 {
     if (!a) return NULL;
     switch(a->kind)
@@ -101,7 +109,8 @@ F_fragList transDef(A_def a)
     }
 }
 
-F_fragList SEM_transProg(A_def root)
+F_fragList 
+SEM_transProg(A_def root)
 {
     E_envs envs = E_base_envs();
     return transDef(Tr_outermost(), envs, root);

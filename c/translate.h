@@ -3,6 +3,9 @@
 
 #include "frame.h"
 
+//暂时使用void*替换tr_exp，以后删除这个typedef
+typedef void *Tr_exp;
+
 typedef struct Tr_level_ *Tr_level;
 
 struct Tr_level_

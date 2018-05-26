@@ -11,7 +11,7 @@ E_envs E_base_envs(void)
     return p;
 }
 
-E_enventry E_varEntry(Ty_ty ty){
+E_enventry E_VarEntry(Ty_ty ty){
     E_enventry_ e;
     e.kind = E_varEntry;
     e.u.var.ty = ty;

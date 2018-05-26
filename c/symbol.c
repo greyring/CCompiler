@@ -26,7 +26,7 @@ static unsigned int hash(char *s0)
     return h;
 }
 
-//提供string，如果散列表里存在就返回这个symbol，如果不存在，就增加这个symbol再返回它
+//提供string，如果散列表里存在就返回这个symbol，如果不存在，就建立这个symbol再返回它
 S_symbol _S_symbol(string name)
 {
     int index;
@@ -55,7 +55,7 @@ void S_enter(S_table t, S_symbol sym, void *value)
 }
 
 //查找
-void *S_lookup(S_table t, S_symbol sym)
+void *S_look(S_table t, S_symbol sym)
 {
     return TAB_lookup(t, sym);
 }

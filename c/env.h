@@ -24,19 +24,26 @@ struct E_enventry_
     }u;
 };
 
-struct E_envs_
+struct E_envs_ //这是干嘛的
 {
     S_table tenv;
     S_table venv;
-    S_table tagenv;
+    S_table tagenv; //这是干嘛的
 };
 
-E_enventry E_varEntry(Ty_ty ty);
+//建立一个varEntry
+E_enventry E_VarEntry(Ty_ty ty);
+//建立一个funEntry
 E_enventry E_FunEntry(Ty_tyList formals, Ty_ty result);
 
+
+//建立一个envs
 E_envs E_base_envs(void);
 
+
+//建立type环境
 S_table E_base_tenv(void);
+//建立value环境
 S_table E_base_venv(void);
 
 #endif

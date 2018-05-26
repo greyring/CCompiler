@@ -26,7 +26,7 @@ S_table S_empty(void);
 void S_enter(S_table t, S_symbol sym, void *value);
 
 //查找一个symbol
-void *S_lookup(S_table t, S_symbol sym);
+void *S_look(S_table t, S_symbol sym);
 
 //开始新scope，即插入一个<mark>
 void S_beginScope(S_table t);
