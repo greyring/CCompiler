@@ -26,6 +26,7 @@ static unsigned int hash(char *s0)
     return h;
 }
 
+//提供string，如果散列表里存在就返回这个symbol，如果不存在，就增加这个symbol再返回它
 S_symbol _S_symbol(string name)
 {
     int index;
@@ -41,26 +42,31 @@ S_symbol _S_symbol(string name)
     return sym;
 }
 
+//建新的table
 S_table S_empty(void)
 {
   return TAB_empty();
 }
 
+//替换一个symbol，隐藏旧的symbol，便于撤销操作
 void S_enter(S_table t, S_symbol sym, void *value)
 {
     TAB_enter(t, sym, value);
 }
 
+//查找
 void *S_lookup(S_table t, S_symbol sym)
 {
     return TAB_lookup(t, sym);
 }
 
+//开始新scope，在散列表的头部增加一个<mark>标志，作为scope开始标志，便于撤销操作
 void S_beginScope(S_table t)
 {
     S_enter(t, &marksym, NULL);
 }
 
+//取消scope，pop直到遇到<mark>为止
 void S_endScope(S_table t)
 {
     S_symbol s;
