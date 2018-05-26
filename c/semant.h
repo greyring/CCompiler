@@ -20,23 +20,58 @@ expty
 expTy(Tr_exp exp, Ty_ty ty);
 
 
-//变量的检查
-struct expty_
-transVar();
-
-//表达式的检查
+//A_exp语义分析
 struct expty_
 transExp();
 
+//A_spec语义分析
+int 
+noStoreType(A_spec a, A_storage_type type);
 
-//声明检查
-void
+
+//A_type语义分析
+struct expty_
+transType();
+
+
+//A_pointer语义分析
+struct expty_
+transPointer();
+
+
+//A_param语义分析
+struct expty_
+transParam();
+
+
+
+//A_dec语义分析
+struct expty_
 transDec();
 
+//A_declaration语义分析
+struct expty_
+transDeclaration();
 
-//类型检查
-struct Ty_ty_
-transTy();
+//A_type_name语义分析
+struct expty_
+transTypeName();
+
+//A_designator语义分析
+struct expty_
+transDesignator();
+
+//A_init语义分析
+struct expty_
+transInit();
+
+//A_stat语义分析
+struct expty_
+transStat();
+
+//A_def语义分析
+F_fragList 
+transDef(A_def a);
 
 
 #endif

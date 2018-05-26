@@ -14,14 +14,16 @@ expTy(Tr_exp exp, Ty_ty ty)
     return &e;
 }
 
-static struct 
-expty_ transExp(A_exp a)
+
+//A_exp语义分析
+struct expty_ 
+transExp(A_exp a)
 {
     switch (a->kind)
     {
         case A_id_exp:
 
-            return trexp2expty(Tr_access(a->u.id), ?);//todo
+            return expTy(Tr_access(a->u.id), ?);//todo
         case A_intexp_exp:
             return expty_prim(a->u.intexp);//todo
         case A_floatexp_exp:
@@ -66,7 +68,8 @@ expty_ transExp(A_exp a)
     }
 }
 
-static int 
+//A_spec语义分析
+int 
 noStoreType(A_spec a, A_storage_type type)
 {
     int res = 0;
@@ -86,6 +89,9 @@ noStoreType(A_spec a, A_storage_type type)
     return res;
 }
 
+
+//frame模块定义F_fragList
+//A_def类型检查
 F_fragList 
 transDef(A_def a)
 {
@@ -109,6 +115,8 @@ transDef(A_def a)
     }
 }
 
+
+//语义分析主接口，遍历AST
 F_fragList 
 SEM_transProg(A_def root)
 {
