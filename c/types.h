@@ -7,7 +7,9 @@
 #include "symbol.h"
 
 typedef struct Ty_ty_ *Ty_ty;
-typedef struct Ty_fields_ *Ty_fields;
+typedef struct Ty_field_ *Ty_field;
+typedef struct Ty_fieldList_ *Ty_fieldList;
+typedef struct Ty_tyList_ *Ty_tyList;
 
 /*future
 typedef struct
@@ -46,7 +48,7 @@ struct Ty_ty_
     }u;
 };
 
-struct Ty_fields_
+struct Ty_field_
 {
     //Ty_qual_ qual;
     //A_exp     bit;//may be null
@@ -55,7 +57,17 @@ struct Ty_fields_
     S_symbol name;//may be null
     int    offset;
     int    size;
-    int   align;
+    int    align;
+};
+
+struct Ty_fieldList_{
+    Ty_field head;
+    Ty_fieldList tail;
+};
+
+struct Ty_tyList_{
+    Ty_ty head;
+    Ty_tyList tail;
 };
 
 Ty_ty Ty_VOID(void);
@@ -76,8 +88,15 @@ Ty_ty Ty_DOUBLE(void);//todo qual
 Ty_ty Ty_LDOUBLE(void);//todo qual
 */
 
-Ty_ty Ty_Name(S_symbol sym, Ty_ty ty);//todo qual
-Ty_ty Ty_Array(Ty_ty ty);//todo qual num
-Ty_ty Ty_Structty(Ty_fields fields);//todo qual
+Ty_ty Ty_Name(S_symbol sym, Ty_ty ty);
+Ty_ty Ty_Array(Ty_ty ty);
+Ty_ty Ty_Array(Ty_ty ty, int num);
+Ty_ty Ty_Pointer(Ty_ty ty);
+Ty_ty Ty_Structty(Ty_fields fields);
 
-Ty_fields Ty_Fields(S_symbol name, Ty_ty ty, Ty_Fields next);//todo qual bit
+//?
+Ty_field Ty_Field(S_symbol name, Ty_ty ty, Ty_field next);//todo qual bit
+
+Ty_fieldList Ty_FieldList(Ty_field head, Ty_fieldList tail);
+Ty_tyList Ty_TyList(Ty_ty head, Ty_tyList tail);
+#endif

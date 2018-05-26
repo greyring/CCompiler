@@ -32,7 +32,7 @@ struct E_envs_
 };
 
 E_enventry E_varEntry(Ty_ty ty);
-E_enventry E_FunEntry(Ty_tylist formals, Ty_ty result);
+E_enventry E_FunEntry(Ty_tyList formals, Ty_ty result);
 
 E_envs E_base_envs(void);
 
