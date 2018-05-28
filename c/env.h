@@ -6,6 +6,7 @@
 typedef struct E_envs_ *E_envs;
 typedef struct E_enventry_ *E_enventry;
 
+//值环境，symbol<->enventry
 struct E_enventry_
 {
     enum{
@@ -41,9 +42,9 @@ E_enventry E_FunEntry(Ty_tyList formals, Ty_ty result);
 E_envs E_base_envs(void);
 
 
-//建立type环境
+//建立基本环境，将int绑定到Ty_INT，string绑定到Ty_STRING
 S_table E_base_tenv(void);
-//建立value环境
+//基本enventry环境
 S_table E_base_venv(void);
 
 #endif

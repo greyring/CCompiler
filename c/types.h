@@ -44,7 +44,7 @@ struct Ty_ty_
             int     num;//-1:not specified
         }array;//for 2 arrays, if num is given, they should be same
         Ty_ty pointer;
-        Ty_fields structty_ty;
+        Ty_field structty_ty;
     }u;
 };
 
@@ -92,7 +92,7 @@ Ty_ty Ty_Name(S_symbol sym, Ty_ty ty);
 Ty_ty Ty_Array(Ty_ty ty);
 Ty_ty Ty_Array(Ty_ty ty, int num);
 Ty_ty Ty_Pointer(Ty_ty ty);
-Ty_ty Ty_Structty(Ty_fields fields);
+Ty_ty Ty_Structty(Ty_field fields);
 
 //?
 Ty_field Ty_Field(S_symbol name, Ty_ty ty, Ty_field next);//todo qual bit
