@@ -5,43 +5,76 @@
 
 
 //建立一个expty
-expty 
+struct expty_
 expTy(Tr_exp exp, Ty_ty ty)
 {
     struct expty_ e;
     e.exp = exp; 
     e.ty = ty;
-    return &e;
+    return e;
 }
 
 
 //A_exp语义分析
 struct expty_ 
-transExp(A_exp a)
+transExp(S_table venv, S_table tenv, A_exp a)
 {
     switch (a->kind)
     {
         case A_id_exp:
-
-            return expTy(Tr_access(a->u.id), ?);//todo
-        case A_intexp_exp:
+            E_enventry x = (E_enventry)S_look(venv, a->u.id);
+            if(x && x->kind==E_varEntry)
+                return expTy(NULL, x->u.var.ty);//这里没用actual_ty(x->u.var.ty)函数，不知道是否要用它
+            else{
+                printf("undefined variable %s", S_name(a->u.id));
+                return expTy(NULL, Ty_INT());
+            }
+            break;
+            // return expTy(Tr_access(a->u.id), ?);//todo
+        case A_intexp_exp:{
+            // E_enventry x = (E_enventry)S_look(venv, a->u.simple);
             return expty_prim(a->u.intexp);//todo
+            break;
+        }
+            
         case A_floatexp_exp:
             return expty_prim(a->u.floatexp);//rodo
+            break;
+
         case A_charexp_exp:
             return expty_prim(a->u.charexp);//todo
+            break;
+
         case A_strexp_exp:
+            break;
             //todo
+
+        //什么意思？
         case A_subscript_exp:
-            struct expty expr, subscript;
-            expr = transExp(a->u.subscript.expr);//pointer type or array type
-            subscript = transExp(a->u.subscript.subscript);//int type
-            assert(expr.ty is integer);
-            assert(subscript is pointer);
-            return trexp2expty(Tr_subscript_exp(expr, subscript), ?);//todo
+            struct expty_ expr, subscript;
+            expr = transExp(venv, tenv, a->u.subscript.expr);//pointer type or array type
+            subscript = transExp(venv, tenv, a->u.subscript.subscript);//int type
+            assert(expr.ty is integer); // is not id?
+            assert(subscript is pointer); // is not integer?
+            return expTy(Tr_subscript_exp(expr, subscript), ?);//todo
+        
+        
         case A_funccall_exp:
             //todo
+        
+        
         case A_dot_exp:
+
+
+        case A_point_exp:
+
+        case A_postpp_exp://这是什么
+
+        case A_postmm_exp://这是什么
+
+
+        case A_init_exp:
+
 
         
         

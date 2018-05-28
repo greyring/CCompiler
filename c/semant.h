@@ -16,7 +16,7 @@ struct expty_
 Tr_exp来自translate模块，课本第7章，翻译成中间代码
 暂时使用void*代替，完成translate模块后删除那个typedef
 *********************************/
-expty 
+struct expty_
 expTy(Tr_exp exp, Ty_ty ty);
 
 

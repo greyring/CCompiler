@@ -34,4 +34,8 @@ void S_beginScope(S_table t);
 //结束scope，撤销，不停调用pop直到遇到<mark>
 void S_endScope(S_table t);
 
+//根据symbol返回变量名id
+string S_name(S_symbol sym);
+
+
 #endif

@@ -74,3 +74,9 @@ void S_endScope(S_table t)
         s = TAB_pop(t);
     }while(s != &marksym);
 }
+
+//通过symbol查询变量名id
+string S_name(S_symbol sym)
+{
+ return sym->name;
+}
