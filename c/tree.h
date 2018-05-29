@@ -1,96 +1,132 @@
-#ifndef TIGER_TREE_H_
-#define TIGER_TREE_H_
+/*
+ * tree.h - Definitions for intermediate representation (IR) trees.
+ *
+ */
+#ifndef _TREE_H_
+#define _TREE_H_
 
 #include "temp.h"
 
 typedef struct T_stm_ *T_stm;
 typedef struct T_exp_ *T_exp;
-// typedef struct T_expList_ *T_expList;
-// typedef struct T_stmList_ *T_stmList;
+typedef struct T_expList_ *T_expList;
+typedef struct T_stmList_ *T_stmList;
 
-typedef enum 
+typedef enum
 {
-    T_PLUS, 
-    T_MINUS, 
-    T_MUL, 
-    T_DIV,
-    T_AND, T_OR, T_XOR
-    T_LSH, T_RSH, 
-}T_binOp;
+	T_plus,
+	T_minus,
+	T_mul,
+	T_div,
+	T_and,
+	T_or,
+	T_lshift,
+	T_rshift,
+	T_arshift,
+	T_xor
+} T_binOp;
 
-typedef enum  
+typedef enum
 {
-    T_EQ, T_NE, T_LT, T_GT, T_LE, T_GE,
-}T_relOp;
+	T_eq,
+	T_ne,
+	T_lt,
+	T_gt,
+	T_le,
+	T_ge,
+	T_ult,
+	T_ule,
+	T_ugt,
+	T_uge
+} T_relOp;
 
-struct T_stm_{
-	enum{
-        T_seq_stm, 
-        T_label_stm, 
-        T_jump_stm, 
-        T_cjump_stm, 
-        T_move_stm, 
-        T_exp_stm
-    }kind;
-	union{
-		struct{
-            T_stm stm, next;
-        }seq;
-		Temp_label label;
-		struct{
-            T_exp exp; 
-            Temp_labelList jumps;
-        }jump;
-		struct{
+struct T_expList_
+{
+	T_exp head;
+	T_expList tail;
+};
+struct T_stmList_
+{
+	T_stm head;
+	T_stmList tail;
+};
+
+struct T_stm_
+{
+	enum
+	{
+		T_SEQ,
+		T_LABEL,
+		T_JUMP,
+		T_CJUMP,
+		T_MOVE,
+		T_EXP
+	} kind;
+	union {
+		struct
+		{
+			T_stm left, right;
+		} SEQ;
+		Temp_label LABEL;
+		struct
+		{
+			T_exp exp;
+			Temp_labelList jumps;
+		} JUMP;
+		struct
+		{
 			T_relOp op;
 			T_exp left, right;
-			Temp_label t, f;
-		}cjump;
-		struct{
-            T_exp dst, src;
-        }move;
-		T_exp exp;
+			Temp_label true, false;
+		} CJUMP;
+		struct
+		{
+			T_exp dst, src;
+		} MOVE;
+		T_exp EXP;
 	} u;
 };
 
-struct T_exp_{
-	enum{
-        T_binop_exp, 
-        T_mem_exp, 
-        T_temp_exp, 
-        T_eseq_exp, 
-        T_name_exp, 
-        T_constexp_exp, 
-        T_call_exp
-    }kind;
-	union{
-		struct{
-            T_binOp op; 
-            T_exp left, right;
-        }binop;
-		T_exp mem;
-		Temp_temp temp;
-		struct{
-            T_stm stm; 
-            T_exp exp;
-        }eseq;
-		Temp_label name;
-		int constexp;
-		struct{
-            T_exp fun; 
-            T_expList args;
-        }call;
-	}u;
+struct T_exp_
+{
+	enum
+	{
+		T_BINOP,
+		T_MEM,
+		T_TEMP,
+		T_ESEQ,
+		T_NAME,
+		T_CONST,
+		T_CALL
+	} kind;
+	union {
+		struct
+		{
+			T_binOp op;
+			T_exp left, right;
+		} BINOP;
+		T_exp MEM;
+		Temp_temp TEMP;
+		struct
+		{
+			T_stm stm;
+			T_exp exp;
+		} ESEQ;
+		Temp_label NAME;
+		int CONST;
+		struct
+		{
+			T_exp fun;
+			T_expList args;
+		} CALL;
+	} u;
 };
 
-// struct T_expList_{T_exp exp; T_expList next;};
-// struct T_stmList_{T_stm stm; T_stmList next;};
+T_expList T_ExpList(T_exp head, T_expList tail);
+T_stmList T_StmList(T_stm head, T_stmList tail);
 
-// T_expList T_ExpList(T_exp head, T_expList tail);
-// T_stmList T_StmList(T_stm head, T_stmList tail);
-
-T_stm _T_seq_stm(T_stm, T_stm);
-T_stm _T_label_stm(Temp_label);
+T_stm T_Seq(T_stm left, T_stm right);
+T_stm T_Label(Temp_label);
 T_stm T_Jump(T_exp exp, Temp_labelList labels);
 T_stm T_Cjump(T_relOp op, T_exp left, T_exp right, Temp_label true, Temp_label false);
 T_stm T_Move(T_exp, T_exp);
@@ -107,4 +143,4 @@ T_exp T_Call(T_exp, T_expList);
 T_relOp T_notRel(T_relOp);  /* a op b    ==     not(a notRel(op) b)  */
 T_relOp T_commute(T_relOp); /* a op b    ==    b commute(op) a       */
 
-#endif /* TIGER_TREE_H_ */
+#endif

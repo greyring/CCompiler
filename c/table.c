@@ -41,7 +41,7 @@ void TAB_enter(TAB_table t, void *key, void *value)
     t->top = key;
 }
 
-void *TAB_lookup(TAB_table t, void *key)
+void *TAB_look(TAB_table t, void *key)
 {
     int index;
     binder b;

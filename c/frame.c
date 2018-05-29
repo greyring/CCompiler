@@ -1,6 +1,7 @@
 #include "util.h"
 #include "frame.h"
 #include "temp.h"
+#include "tree.h"
 
 struct F_access_
 {
@@ -16,18 +17,32 @@ struct F_access_
 
 struct F_frame_
 {
-
+    F_accessList locals;
+    Temp_label   name;
+    int          frame_size;
 };
 
-F_fragList F_FragList(F_fragList head, F_fragList frags)
+static F_access InFrame(int offset)
 {
-    head->next = frags;
-    return head;
+    F_access p = checked_malloc(sizeof(*p));
+    p->kind = F_inFrame;
+    p->u.offset = offset;
+    return p;
 }
 
-F_frame F_newFrame(Temp_label name, F_escapeList formals)
+static F_access InReg(Temp_temp reg)
 {
+    F_access p = checked_malloc(sizeof(*p));
+    p->kind = F_inReg;
+    p->u.reg = reg;
+    return p;
+}
 
+F_accessList F_AccessList(F_access head, F_accessList tail)
+{
+    F_accessList p = checked_malloc(sizeof(*p));
+    p->head = head; p->tail = tail;
+    return p;
 }
 
 F_escapeList F_EscapeList(int escape, F_escapeList next)
@@ -37,3 +52,25 @@ F_escapeList F_EscapeList(int escape, F_escapeList next)
     p->next = next;
     return p;
 }
+
+F_access F_allocLocal(F_frame f, int escape)
+{
+    if (escape)
+    {
+        F_access access;
+        access = InFrame(f->frame_size);
+        f->frame_size += 4;
+        f->locals = F_AccessList(access, f->locals);
+        return access;
+    }
+    else
+        return InReg(Temp_newtemp());
+}
+
+F_frame F_newFrame(Temp_label name, F_escapeList formals)
+{
+
+}
+
+
+
