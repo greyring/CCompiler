@@ -28,6 +28,7 @@ E_enventry E_FunEntry(Ty_tyList formals, Ty_ty result){
 
 S_table E_base_tenv(void){
     return TAB_empty();
+    
 }
 
 S_table E_base_venv(void){

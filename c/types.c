@@ -14,6 +14,9 @@ static Ty_ty_ Ty_basic(void)
 BASIC(VOID);
 BASIC(INT);
 
+static struct Ty_ty_ tyvoid = {Ty_VOID};
+
+
 Ty_ty Ty_Name(S_symbol sym, Ty_ty ty){
     Ty_ty t = checked_malloc(sizeof(*t));
     t->kind = Ty_name_ty;
