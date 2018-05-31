@@ -103,7 +103,7 @@ struct A_exp_
             A_init init_list;
         }init;
         struct{
-           A_op op;
+           A_op op;//+ - ~ !
            A_exp expr;
         }unaryop;
         A_type_name sizeof_type;

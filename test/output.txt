@@ -1,0 +1,148 @@
+../test/test.c
+A_seq_def
+        A_seq_def
+                A_seq_def
+                        A_seq_def
+                                A_simple_def
+                                        A_simple_declaration
+                                                A_type_spec
+                                                        A_simple_type
+                                                        A_prim_type : A_INT
+                                                A_simple_dec
+                                                S_symbol : a
+                                A_simple_def
+                                        A_simple_declaration
+                                                A_type_spec
+                                                        A_simple_type
+                                                        A_prim_type : A_CHAR
+                                                A_init_dec
+                                                        A_simple_dec
+                                                        S_symbol : ss
+                                                        A_simple_init
+                                                                A_strexp_exp : 1234567
+                        A_simple_def
+                                A_simple_declaration
+                                        A_type_spec
+                                                A_simple_type
+                                                A_prim_type : A_INT
+                                        A_array_dec
+                                                A_simple_dec
+                                                S_symbol : ff
+                                                A_intexp_exp : 100
+                A_func_def
+                        A_type_spec
+                                A_simple_type
+                                A_prim_type : A_INT
+                        A_func_dec
+                                A_simple_dec
+                                S_symbol : b
+                                A_seq_param
+                                        A_dec_param
+                                                A_type_spec
+                                                        A_simple_type
+                                                        A_prim_type : A_INT
+                                                A_simple_dec
+                                                S_symbol : c
+                                        A_dec_param
+                                                A_type_spec
+                                                        A_simple_type
+                                                        A_prim_type : A_INT
+                                                A_simple_dec
+                                                S_symbol : d
+                NULL
+                        A_seq_stat
+                                A_seq_stat
+                                        A_seq_stat
+                                                A_dec_stat
+                                                        A_simple_declaration
+                                                                A_type_spec
+                                                                        A_simple_type
+                                                                        A_prim_type : A_DOUBLE
+                                                                A_simple_dec
+                                                                S_symbol : e
+                                                A_exp_stat
+                                                        A_assign_exp
+                                                                A_subscript_exp
+                                                                        A_id_exp
+                                                                        S_symbol : ff
+                                                                        A_intexp_exp : 1
+                                                        A_op : A_ASSIGN
+                                                                A_intexp_exp : 1
+                                        A_exp_stat
+                                                A_assign_exp
+                                                        A_id_exp
+                                                        S_symbol : c
+                                                A_op : A_ASSIGN
+                                                        A_binop_exp
+                                                        A_op : A_PLUS
+                                                                A_id_exp
+                                                                S_symbol : c
+                                                                A_id_exp
+                                                                S_symbol : d
+                                A_returnstat_stat
+                                        A_id_exp
+                                        S_symbol : c
+        A_func_def
+                A_type_spec
+                        A_simple_type
+                        A_prim_type : A_INT
+                A_func_dec
+                        A_simple_dec
+                        S_symbol : f
+                        A_seq_param
+                                A_dec_param
+                                        A_type_spec
+                                                A_simple_type
+                                                A_prim_type : A_INT
+                                        A_simple_dec
+                                        S_symbol : g
+                                A_dec_param
+                                        A_type_spec
+                                                A_simple_type
+                                                A_prim_type : A_INT
+                                        A_simple_dec
+                                        S_symbol : h
+        NULL
+                A_seq_stat
+                        A_exp_stat
+                                A_assign_exp
+                                        A_id_exp
+                                        S_symbol : g
+                                A_op : A_ASSIGN
+                                        A_funccall_exp
+                                                A_id_exp
+                                                S_symbol : b
+                                                A_seq_exp
+                                                        A_id_exp
+                                                        S_symbol : g
+                                                        A_id_exp
+                                                        S_symbol : h
+                        A_ifstat_stat
+                                A_binop_exp
+                                A_op : A_LTE
+                                        A_id_exp
+                                        S_symbol : g
+                                        A_id_exp
+                                        S_symbol : h
+                                A_returnstat_stat
+                                        A_id_exp
+                                        S_symbol : g
+                                A_returnstat_stat
+                                        A_id_exp
+                                        S_symbol : f
+
+(NLPCC)
+
+
+int a;
+int b(int c, int d){
+    double e;
+    c = c + d;
+    return c;
+}
+int f(int g, int h){
+	g = b(c, d);
+    if (g <= h) return g;
+    else return f;
+}
+
