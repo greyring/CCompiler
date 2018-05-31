@@ -1,3 +1,5 @@
-int a();
-int b();
-int c();
+int const * a;
+int b()
+{
+    *a = 1;
+}

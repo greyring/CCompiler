@@ -19,7 +19,7 @@ struct E_enventry_
             Ty_ty ty;
         }var;
         struct{
-            Ty_tylist formals;
+            Ty_tyList formals;
             Ty_ty result;
         }fun;
     }u;
@@ -46,5 +46,3 @@ E_envs E_base_envs(void);
 S_table E_base_tenv(void);
 //基本enventry环境
 S_table E_base_venv(void);
-
-#endif

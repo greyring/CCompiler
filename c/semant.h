@@ -1,77 +1,23 @@
-#ifndef _SEMANT_H_
-#define _SEMANT_H_
+#ifndef SEMANT_H
+#define SEMANT_H
 
-#include "types.h"
+struct expty {Tr_exp exp; Ty_ty ty;};
 
-typedef struct expty_ *expty;
+struct expty Expty(Tr_exp exp, Ty_ty ty);
 
-struct expty_
-{
-    Tr_exp exp;
-    Ty_ty   ty;
-};
+void printError(char* c);
 
-/********************************
-建立一个expty
-Tr_exp来自translate模块，课本第7章，翻译成中间代码
-暂时使用void*代替，完成translate模块后删除那个typedef
-*********************************/
-struct expty_
-expTy(Tr_exp exp, Ty_ty ty);
-
-
-//A_exp语义分析
-struct expty_
-transExp();
-
-//A_spec语义分析
-int 
-noStoreType(A_spec a, A_storage_type type);
-
-
-//A_type语义分析
-struct expty_
-transType();
-
-
-//A_pointer语义分析
-struct expty_
-transPointer();
-
-
-//A_param语义分析
-struct expty_
-transParam();
-
-
-
-//A_dec语义分析
-struct expty_
-transDec();
-
-//A_declaration语义分析
-struct expty_
-transDeclaration();
-
-//A_type_name语义分析
-struct expty_
-transTypeName();
-
-//A_designator语义分析
-struct expty_
-transDesignator();
-
-//A_init语义分析
-struct expty_
-transInit();
-
-//A_stat语义分析
-struct expty_
-transStat();
-
-//A_def语义分析
-F_fragList 
-transDef(A_def a);
-
+struct expty transExp(S_table venv, S_table tenv, A_exp a);
+struct expty transSpec(S_table venv, S_table tenv, A_spec a);
+struct expty transType(S_table venv, S_table, tenv, A_type a);
+struct expty transPointer(S_table venv, S_table tenv, A_pointer a);
+struct expty transParam(S_table venv, S_table tenv, A_param a);
+struct expty transDec(S_table venv, S_table tenv, A_dec a);
+struct expty transDeclaration(S_table venv, S_table tenv, A_declaration a);
+struct expty transTypeName(S_table venv, S_table tenv, A_type_name a);
+struct expty transDesignator(S_table venv, S_table tenv, A_designator a);
+struct expty transInit(S_table venv, S_table tenv, A_init a);
+struct expty transStat(S_table venv, S_table tenv, A_stat a);
+struct expty transDef(S_table venv, S_table tenv, A_def a);
 
 #endif

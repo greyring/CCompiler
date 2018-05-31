@@ -1,171 +1,297 @@
-#include "env.h"
 #include "translate.h"
 #include "semant.h"
 #include "absync.h"
-#include "errormsg.h"
+#include "table.h"
+#include "symbol.h"
+#include "util.h"
+#include "types.h"
+#include "env.h"
+#include <string.h>
 
-
-//建立一个expty
-struct expty_ 
-expTy(Tr_exp exp, Ty_ty ty)
-{
-    struct expty_ e;
-    e.exp = exp; 
-    e.ty = ty;
+struct expty Expty(Tr_exp exp, Ty_ty ty){
+    struct expty e;
+    e.exp = exp; e.ty = ty;
     return e;
 }
 
+void printError(int line, char* c){
+    printf("Line %d : %s\n", line, c);
+    exit(0);
+}
 
-//A_exp语义分析
-struct expty_ 
-transExp(S_table venv/*值环境*/, S_table tenv/*类型环境*/, A_exp a)
-{
-    switch (a->kind)
-    {
-        //检查变量，下标和域, =transVar()
-        case A_id_exp:{
-            //检查变量是不是varEntry类型，不是的话报错
-            E_enventry x = (E_enventry)S_look(venv, a->u.id);
-            if(x && x->kind==E_varEntry){
-                //类型检查无误
-                return expTy(NULL, x->u.var.ty);//这里没用actual_ty(x->u.var.ty)函数，不知道是否要用它
+/*
+Only basic type
+No pointer
+Only int and float
+*/
+
+struct expty transExp(S_table venv, S_table tenv, A_exp a){
+    switch (a->kind){
+        case A_id_exp : {
+            E_enventry e = S_look(venv, a->u.id);
+            if (e == NULL){
+                printError(a->pos, "No such variable");
             }
-            else{
-                //类型检查出错
-                EM_error(a->pos, "undefined variable %s", S_name(a->u.id));
-                return expTy(NULL, Ty_INT());
+            return Expty(NULL, e->u.var.ty);
+            break;
+        }
+        case A_intexp_exp : {
+            return Expty(NULL, Ty_Int());
+            break;
+        }
+        case A_floatexp_exp : {
+            return Expty(NULL, Ty_Float());
+            break;
+        }
+        case A_charexp_exp : {
+            return Expty(NULL, Ty_Char());
+            break;
+        }
+        case A_strexp_exp : {
+            return Expty(NULL, Ty_Array(Ty_Char(), strlen(a->u.strexp)));
+            break;
+        }
+        case A_subscript_exp : {
+            Expty idExp = transExp(venv, tenv, a->u.subscript.expr);
+            Expty sbExp = transExp(venv, tenv, a->u.subscript.subscript);
+            if (sbExp.ty->kind != Ty_int){
+                printError(a->pos, "Subscript needs to be int type");
+            }
+            if (idExp.ty->kind != Ty_array){
+                printError(a->pos, "id needs to be array type");
+            }
+            return Expty(NULL, idExp.ty->u.array.array);
+            break;
+        }
+        case A_funccall_exp : {//Simple One
+            if (a->u.funccal.expr == NULL || a->u.funccall.expr->kind != A_id_exp){
+                printError(a->pos, "func needs a name");
+            }
+            Symbol sym = a->u.funccall.expr->u.id;
+            E_enventry e = S_look(tenv, id);
+
+            if (e == NULL){
+                printError(a->pos, "func not defined");
+            }
+
+            if (e->kind != E_funEntry){
+                printError(a->pos, "not a func");
+            }
+
+            Ty_tyList formals = e->u.fun.formals;
+            A_exp args = a->u.funccall.args;
+
+            if (args == NULL){
+                if (formals != NULL){
+                    printError(a->pos, "func need params");
+                }
+                else{
+                    return Expty(NULL, e->u.fun.result);
+                }
+            }
+            else while (1){
+                Expty exp;
+                if (args->kind == A_seq_exp){
+                    exp = transExp(venv, tenv, args->u.expr);
+                    if (formals->head == NULL || formals->head->kind != exp.ty->kind){
+                        printError(a->pos, "Unmatched params");
+                    }
+                    formals = formals->tail;
+                    args = args->u.seq.next;
+                }
+                else{
+                    exp = transExp(venv, tenv, args);
+                    if (formals->head == NULL || formals->head->kind != exp.ty->kind){
+                        printError(a->pos, "Unmatched params");
+                    }
+                    formals = formals->tail;
+                    if (formals != NULL){
+                        printError(a->pos, "Umatched params");
+                    }
+                    break;
+                }
+            }
+
+            return Expty(NULL, e->u.fun.result);
+            break;
+        }
+        case A_dot_exp : {//struct expr.id
+            break;
+        }
+        case A_point_exp : {//struct expr->id
+            break;
+        }
+        case A_postpp_exp : {
+            Expty exp = transExp(venv, tenv, a->u.postpp);
+            if (exp.ty->kind != Ty_int){
+                printError(a->pos, "Only integer can operate plus plus");
+            }
+            return Expty(NULL, Ty_Int);
+            break;
+        }
+        case A_postmm_exp : {
+            Expty exp = transExp(venv, tenv, a->u.postpp);
+            if (exp.ty->kind != Ty_int){
+                printError(a->pos, "Only integer can operate minus minus");
+            }
+            return Expty(NULL, Ty_Int);
+            break;
+        }
+        case A_init_exp : {
+            break;
+        }
+        
+        case A_prepp_exp : {
+            Expty exp = transExp(venv, tenv, a->u.postpp);
+            if (exp.ty->kind != Ty_int){
+                printError(a->pos, "Only integer can operate plus plus");
+            }
+            return Expty(NULL, Ty_Int);
+            break;
+        }
+        case A_premm_exp : {
+            Expty exp = transExp(venv, tenv, a->u.postpp);
+            if (exp.ty->kind != Ty_int){
+                printError(a->pos, "Only integer can operate minus minus");
+            }
+            return Expty(NULL, Ty_Int);
+            break;
+        }
+        case A_unaryop_exp : {
+            Expty exp = transExp(venv, tenv, a->u.unaryop.expr);
+            if ((exp.ty->kind != Ty_int   || 
+                 exp.ty=>kind != Ty_float)&&
+                (op == A_PLUS || op == A_MINUS)){
+                    printError(a->pos, "Unmatched operation");
+            }
+            if (exp.ty->kind != Ty_ind && op == A_NOT){
+                printError(a->pos, "Unmatched operation");
+            }
+
+            return Expty(NULL, exp.ty);
+            break;
+        }
+        case A_sizeof_unary_exp : {
+            break;
+        }
+        case A_sizeof_type_exp : {
+            break;
+        }
+
+        case A_cast_exp : {//TODO
+            Expty exp = transExp(vnev, tenv, a->u.cast.expr);
+            return Expty();
+            break;
+        }
+
+        case A_binop_exp : {
+            Expty left = transExp(venv, tenv, a->u.binop.expr1);
+            Expty right= transExp(venv, tenv, a->u.binop.expr2);
+            Expty ret;
+            switch (a->u.binop.op){//only the same type
+                case A_PLUS : {
+                    if (left.ty->kind != right.ty->kind){
+                        printError(a->pos, "Left and right type should be the same");
+                    }
+                    if (left.ty->kind != Ty_int || left.ty->kind != Ty_float){
+                        printError(a->pos, "Only int or float can operate plus");
+                    }
+                    return Expty(NULL, left.ty);
+                }
+                case A_MINUS : {
+                    if (left.ty->kind != right.ty->kind){
+                        printError(a->pos, "Left and right type should be the same");
+                    }
+                    if (left.ty->kind != Ty_int || left.ty->kind != Ty_float){
+                        printError(a->pos, "Only int or float can operate minus");
+                    }
+                    return Expty(NULL, left.ty);
+                }
+                case A_MUL : {
+                    if (left.ty->kind != right.ty->kind){
+                        printError(a->pos, "Left and right type should be the same");
+                    }
+                    if (left.ty->kind != Ty_int || left.ty->kind != Ty_float){
+                        printError(a->pos, "Only int or float can operate mul");
+                    }
+                    return Expty(NULL, left.ty);
+                }
+                case A_DIV : {
+                    if (left.ty->kind != right.ty->kind){
+                        printError(a->pos, "Left and right type should be the same");
+                    }
+                    if (left.ty->kind != Ty_int || left.ty->kind != Ty_float){
+                        printError(a->pos, "Only int or float can operate div");
+                    }
+                    return Expty(NULL, left.ty);
+                }
+                case A_MOD : {
+                    if (left.ty->kind != right.ty->kind){
+                        printError(a->pos, "Left and right type should be the same");
+                    }
+                    if (left.ty->kind != Ty_int){
+                        printError(a->pos, "Only int can operate mod");
+                    }
+                    return Expty(NULL, left.ty);
+                }
+                case A_AND : {
+                    if (left.ty->kind != right.ty->kind){
+                        printError(a->pos, "Left and right type should be the same");
+                    }
+                    if (left.ty->kind != Ty_int){
+                        printError(a->pos, "Only int can operate and");
+                    }
+                    return Expty(NULL, left.ty);
+                }
+                case A_XOR : {
+                    if (left.ty->kind != right.ty->kind){
+                        printError(a->pos, "Left and right type should be the same");
+                    }
+                    if (left.ty->kind != Ty_int){
+                        printError(a->pos, "Only int can operate xor");
+                    }
+                    return Expty(NULL, left.ty);
+                }
+                case A_OR : {
+                    if (left.ty->kind != right.ty->kind){
+                        printError(a->pos, "Left and right type should be the same");
+                    }
+                    if (left.ty->kind != Ty_int){
+                        printError(a->pos, "Only int can operate or");
+                    }
+                    return Expty(NULL, left.ty);
+                }
+                case A_LOGAND : {
+                    
+                }
             }
             break;
         }
-        // return expTy(Tr_access(a->u.id), ?);//todo
-
-
-        case A_intexp_exp:{
-            E_enventry x = (E_enventry)S_look(tenv, a->u.intexp.id);
-            if(x && x->kind==E_varEntry && x->u.var.ty==Ty_constant){
-
-            }
-            return expty_prim(a->u.intexp);//todo
+        case A_threeop_exp : {
             break;
         }
-            
-        case A_floatexp_exp:
-            return expty_prim(a->u.floatexp);//rodo
+
+        case A_assign_exp : {
             break;
-
-        case A_charexp_exp:
-            return expty_prim(a->u.charexp);//todo
+        }
+        case A_seq_exp : {
+            transExp(a->u.seq.expr);
+            return transExp(a->u.seq.next);
             break;
+        }
 
-        case A_strexp_exp:
-            break;
-            //todo
-
-        
-        case A_subscript_exp:
-            struct expty_ expr, subscript;
-            expr = transExp(venv, tenv, a->u.subscript.expr);//pointer type or array type
-            subscript = transExp(venv, tenv, a->u.subscript.subscript);//int type
-            assert(expr.ty is integer); // is not id?
-            assert(subscript is pointer); // is not integer?
-            return expTy(Tr_subscript_exp(expr, subscript), ?);//todo
-        
-        
-        case A_funccall_exp:
-            //todo
-        
-        
-        case A_dot_exp:
-
-
-        case A_point_exp:
-
-        case A_postpp_exp://这是什么
-
-        case A_postmm_exp://这是什么
-
-
-        case A_init_exp:
-
-
-        
-        
-        /*
-        A_dot_exp,
-        A_point_exp,
-        A_postpp_exp,
-        A_postmm_exp,
-        A_init_exp,
-        //unary
-        A_prepp_exp,
-        A_premm_exp,
-        A_unaryop_exp,
-        A_sizeof_unary_exp,
-        A_sizeof_type_exp,
-        //cast
-        A_cast_exp,
-        //op
-        A_binop_exp,
-        A_threeop_exp,
-        //assign
-        A_assign_exp,
-        A_seq_exp*/
     }
 }
 
-//A_spec语义分析
-// specifier有点复杂，暂时忽略
-int 
-noStoreType(A_spec a, A_storage_type type)
-{
-    int res = 0;
-    if (!a) return 1;
-    switch(a->kind)
-    {
-        case A_seq_spec:
-            res = noStoreType(a->u.seq.spec, type) && noStoreType(a->u.seq.next, type);
-            break;
-        case A_storage_spec:
-            res = a->u.storage == type;
-            break;
-        case A_type_spec:case A_qual_type_spec:case A_func_type_spec: 
-            res = 1;
-            break;
-    }
-    return res;
-}
+struct expty transSpec(S_table venv, S_table tenv, A_spec a);
+struct expty transType(S_table venv, S_table, tenv, A_type a);
+struct expty transPointer(S_table venv, S_table tenv, A_pointer a);
+struct expty transParam(S_table venv, S_table tenv, A_param a);
+struct expty transDec(S_table venv, S_table tenv, A_dec a);
+struct expty transDeclaration(S_table venv, S_table tenv, A_declaration a);
+struct expty transTypeName(S_table venv, S_table tenv, A_type_name a);
+struct expty transDesignator(S_table venv, S_table tenv, A_designator a);
+struct expty transInit(S_table venv, S_table tenv, A_init a);
+struct expty transStat(S_table venv, S_table tenv, A_stat a);
+struct expty transDef(S_table venv, S_table tenv, A_def a);
 
-
-//frame模块定义F_fragList
-//A_def类型检查
-F_fragList 
-transDef(A_def a)
-{
-    if (!a) return NULL;
-    switch(a->kind)
-    {
-        case A_seq_def:
-            return F_FragList(transDef(a->u.seq.next), transDef(a->u.seq.def));//reverse order
-        case A_simple_def:
-            //assert(a->u.simple->kind == A_simple_declaration);
-            //assert(noStoreType(a->u.simple->u.simple.spec, A_AUTO));//todo
-            //assert(noStoreType(a->u.simple->u.simple.spec, A_REGISTER));//todo
-            //declarationNameOnce(a->u.simple);
-
-            break;
-        case A_func_def:
-            //assert(noStoreType(a->u.func.spec, A_AUTO));//todo
-            //assert(noStoreType(a->u.func.spec, A_REGISTER));//todo
-
-            break;
-    }
-}
-
-
-//语义分析主接口，遍历AST
-F_fragList 
-SEM_transProg(A_def root)
-{
-    E_envs envs = E_base_envs();
-    return transDef(Tr_outermost(), envs, root);
-}
