@@ -36,7 +36,7 @@ Ty_ty_
         Ty_nil,
         Ty_array, //二次包装
         Ty_name, // 二次包装
-        Ty_pointer, // *
+        Ty_pointer, // 星号*
         Ty_void,
         Ty_char,
         Ty_short,
@@ -46,10 +46,12 @@ Ty_ty_
         Ty_double,
         Ty_signed,
         Ty_unsigned,
+        Ty_constant, //二次包装
         Ty_struct, // 二次包装
         Ty_union, // 二次包装
         Ty_enum, // 二次包装
         Ty_decpointer // int* 二次包装
+        //后面可能出现别的需要用到的type，再往后面加
         
 /*
         //以下是specifier
@@ -148,6 +150,8 @@ Ty_ty_
             Ty_ty pointer;
         }decpointer;
 
+        Ty_ty constant_ty;
+
     }u;
 };
 
@@ -198,6 +202,7 @@ Ty_ty Ty_Struct(Ty_fieldList fields);
 Ty_ty Ty_Union(Ty_fieldList fields);
 Ty_ty Ty_Enum(Ty_ty ty);
 Ty_ty Ty_Decpointer(Ty_ty type, Ty_ty pointer);
+Ty_ty Ty_Constant(Ty_ty type);
 
 //一个包装好的binding，把symbol和Ty_ty绑定成一个Ty_field
 Ty_field Ty_Field(S_symbol name, Ty_ty ty, Ty_field next);//todo qual bit

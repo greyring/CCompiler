@@ -81,10 +81,30 @@ struct A_exp_
     }kind;
     union{
         S_symbol id;
-        int intexp;//todo
+        /* constant必须包装成ty，否则无法做类型检查
+        int intexp;//constant常量
         double floatexp;
         char charexp;
         char* strexp;
+        */
+        struct{
+            S_symbol id;//id是常量名
+            int intnum;
+        }intconst;
+        struct{
+            S_symbol id;
+            double doublenum;
+        }floatconst;
+        struct{
+            S_symbol id;
+            char charnum;
+        }charconst;
+        struct{
+            S_symbol id;
+            char* strnum;
+        }strconst;
+
+
         struct{
             A_exp expr;
             A_exp subscript;
@@ -133,6 +153,7 @@ struct A_exp_
     }u;
 };
 
+// specifier有点复杂，暂时忽略
 struct A_spec_
 {
     A_pos pos;

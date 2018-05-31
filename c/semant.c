@@ -2,10 +2,11 @@
 #include "translate.h"
 #include "semant.h"
 #include "absync.h"
+#include "errormsg.h"
 
 
 //建立一个expty
-struct expty_
+struct expty_ 
 expTy(Tr_exp exp, Ty_ty ty)
 {
     struct expty_ e;
@@ -17,22 +18,33 @@ expTy(Tr_exp exp, Ty_ty ty)
 
 //A_exp语义分析
 struct expty_ 
-transExp(S_table venv, S_table tenv, A_exp a)
+transExp(S_table venv/*值环境*/, S_table tenv/*类型环境*/, A_exp a)
 {
     switch (a->kind)
     {
-        case A_id_exp:
+        //检查变量，下标和域, =transVar()
+        case A_id_exp:{
+            //检查变量是不是varEntry类型，不是的话报错
             E_enventry x = (E_enventry)S_look(venv, a->u.id);
-            if(x && x->kind==E_varEntry)
+            if(x && x->kind==E_varEntry){
+                //类型检查无误
                 return expTy(NULL, x->u.var.ty);//这里没用actual_ty(x->u.var.ty)函数，不知道是否要用它
+            }
             else{
-                printf("undefined variable %s", S_name(a->u.id));
+                //类型检查出错
+                EM_error(a->pos, "undefined variable %s", S_name(a->u.id));
                 return expTy(NULL, Ty_INT());
             }
             break;
-            // return expTy(Tr_access(a->u.id), ?);//todo
+        }
+        // return expTy(Tr_access(a->u.id), ?);//todo
+
+
         case A_intexp_exp:{
-            // E_enventry x = (E_enventry)S_look(venv, a->u.simple);
+            E_enventry x = (E_enventry)S_look(tenv, a->u.intexp.id);
+            if(x && x->kind==E_varEntry && x->u.var.ty==Ty_constant){
+
+            }
             return expty_prim(a->u.intexp);//todo
             break;
         }
@@ -49,7 +61,7 @@ transExp(S_table venv, S_table tenv, A_exp a)
             break;
             //todo
 
-        //什么意思？
+        
         case A_subscript_exp:
             struct expty_ expr, subscript;
             expr = transExp(venv, tenv, a->u.subscript.expr);//pointer type or array type
@@ -102,6 +114,7 @@ transExp(S_table venv, S_table tenv, A_exp a)
 }
 
 //A_spec语义分析
+// specifier有点复杂，暂时忽略
 int 
 noStoreType(A_spec a, A_storage_type type)
 {

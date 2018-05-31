@@ -11,7 +11,8 @@ struct binder_
     void *prevtop;
 };
 
-static binder Binder(void *key, void *value, binder next, void *prevtop)
+static binder 
+Binder(void *key/*key = S_symbol*/, void *value/*value = E_enventry*/, binder next, void *prevtop)
 {
     binder b = checked_malloc(sizeof(*b));
     b->key = key;
@@ -21,7 +22,8 @@ static binder Binder(void *key, void *value, binder next, void *prevtop)
     return b;
 }
 
-TAB_table TAB_empty(void)
+TAB_table 
+TAB_empty(void)
 {
     TAB_table t = checked_malloc(sizeof(*t));
     t->top = NULL;
@@ -32,7 +34,8 @@ TAB_table TAB_empty(void)
     return t;
 }
 
-void TAB_enter(TAB_table t, void *key, void *value)
+void 
+TAB_enter(TAB_table t, void *key, void *value)
 {
     int index;
     assert(t && key);
@@ -41,7 +44,8 @@ void TAB_enter(TAB_table t, void *key, void *value)
     t->top = key;
 }
 
-void *TAB_look(TAB_table t, void *key)
+void *
+TAB_lookup(TAB_table t, void *key)
 {
     int index;
     binder b;
@@ -52,7 +56,8 @@ void *TAB_look(TAB_table t, void *key)
     return NULL;
 }
 
-void *TAB_pop(TAB_table t)
+void *
+TAB_pop(TAB_table t)
 {
     void *k;
     binder b;
@@ -67,3 +72,8 @@ void *TAB_pop(TAB_table t)
     t->top = b->prevtop;
     return b->key;
 }
+
+
+
+
+

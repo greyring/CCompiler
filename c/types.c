@@ -79,6 +79,7 @@ Ty_ty Ty_Name(S_symbol sym, Ty_ty ty){
     t->kind = Ty_name;
     t->u.name.name = sym;
     t->u.name.type = ty;
+
     return t;
 }
 
@@ -87,6 +88,7 @@ Ty_ty Ty_Array(Ty_ty ty){
     t->kind = Ty_array;
     t->u.array.array = ty;
     t->u.array.num = -1;
+
     return t;
 }
 
@@ -95,6 +97,7 @@ Ty_ty Ty_Array(Ty_ty ty, int num){
     t->kind = Ty_array;
     t->u.array.array = ty;
     t->u.array.num = num;
+
     return t;
 }
 
@@ -103,6 +106,7 @@ Ty_ty Ty_Struct(Ty_fieldList fields){
     Ty_ty t = checked_malloc(sizeof(*t));
     t->kind = Ty_struct;
     t->u.struct_ty = fields;
+
     return t;
 }
 
@@ -110,6 +114,7 @@ Ty_ty Ty_Union(Ty_FieldList fields){
     Ty_ty t = checked_malloc(sizeof(*t));
     t->kind = Ty_union;
     t->u.union_ty = fields;
+
     return t;
 }
 
@@ -117,14 +122,25 @@ Ty_ty Ty_Enum(Ty_ty ty){
     Ty_ty t = checked_malloc(sizeof(*t));
     t->kind = Ty_enum;
     t->u.enum_ty = ty;
+
     return t;
 }
 
 Ty_ty Ty_Decpointer(Ty_ty type, Ty_ty pointer){
     Ty_ty t = checked_malloc(sizeof(*t));
-    t->kind = Ty_Decpointer;
+    t->kind = Ty_decpointer;
     t->u.decpointer.type = type;
     t->u.decpointer.pointer = pointer;
+
+    return t;
+}
+
+Ty_ty Ty_Constant(Ty_ty type){
+    Ty_ty t = checked_malloc(sizeof(*t));
+    t->kind = Ty_constant;
+    t->u.constant_ty = type;
+
+    return t;
 }
 
 
@@ -149,4 +165,5 @@ Ty_tyList Ty_TyList(Ty_ty head, Ty_tyList tail){
     t->tail = tail;
     return &t;
 }
-//future double unsigned signed long ...
+
+
