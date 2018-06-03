@@ -1,32 +1,61 @@
 #include "limits.h"
 #include "types.h"
+#include "errormsg.h"
+#include "translate.h"
+#include <assert.h>
 
-#define SPEC(type, num) \
-const unsigned long Ty_##type = 1<<num; \
+static struct Ty_expty Ty_Expty(Tr_exp exp, Ty_ty ty)
+{
+    struct Ty_expty t;
+    t.exp = exp;
+    t.ty = ty;
+}
+
+#define SPEC(type) \
 unsigned long Ty_is##type(Ty_spec spec)\
 {\
     return (spec->specs & Ty_##type);\
 }
 
 //qualifier
-SPEC(CONST, 0); SPEC(VOLATILE, 1); SPEC(RESTRICT, 2);
+SPEC(CONST); SPEC(VOLATILE); SPEC(RESTRICT);
 //storage type
-SPEC(TYPEDEF, 3); SPEC(EXTERN, 4); SPEC(STATIC, 5); SPEC(AUTO, 6); SPEC(REGISTER, 7);
+SPEC(TYPEDEF); SPEC(EXTERN); SPEC(STATIC); SPEC(AUTO); SPEC(REGISTER);
 //func type
-SPEC(INLINE, 8);
+SPEC(INLINE);
 //prim type
-SPEC(VOID, 9);
-SPEC(CHAR, 10); SPEC(SHORT, 11); SPEC(INT, 12);
-SPEC(FLOAT, 13); SPEC(DOUBLE, 14);
-SPEC(SIGNED, 15); SPEC(UNSIGNED, 16);
-SPEC(STRUCT, 17); SPEC(UNION, 18); SPEC(ENUM, 19);
+SPEC(VOID);
+SPEC(CHAR); SPEC(SHORT); SPEC(INT);
+SPEC(FLOAT); SPEC(DOUBLE);
+SPEC(SIGNED); SPEC(UNSIGNED);
+SPEC(STRUCT); SPEC(UNION); SPEC(ENUM);
 #undef SPEC
 
+#define BASIC(NAME) \
+struct Ty_ty_ Ty_##NAME##_ =\
+{.kind = Ty_basicTy, \
+ .complete = 0, \
+ .u.basicTy = NULL, \
+ };\
+Ty_ty Ty_##NAME (void){return &Ty_##NAME##_;}
+
+BASIC(Void)
+BASIC(Char); BASIC(UChar);
+BASIC(Short); BASIC(UShort);
+BASIC(Int); BASIC(UInt);
+BASIC(Long); BASIC(ULong);
+BASIC(LLong); BASIC(ULLong);
+BASIC(Float);
+BASIC(Double); BASIC(LDouble);
+#undef BASIC
+
+//test a spec
 unsigned long Ty_isLONG(Ty_spec spec)
 {
     return spec->LONG != 0;
 }
 
+//test a spec is simple type
 unsigned long Ty_isSimpleType(Ty_spec ty_spec)
 {
     return Ty_isVOID(ty_spec) || Ty_isCHAR(ty_spec) || Ty_isSHORT(ty_spec) || Ty_isINT(ty_spec)
@@ -34,61 +63,119 @@ unsigned long Ty_isSimpleType(Ty_spec ty_spec)
             ||Ty_isSIGNED(ty_spec) || Ty_isUNSIGNED(ty_spec);
 }
 
-#define BASIC(NAME, ALIGN, SIZE, SIGN) \
-struct Ty_ty_ Ty_##NAME##_ = \
-{.kind = Ty_basic, \
- .align = ALIGN, \
- .size = SIZE, \
- .sign = SIGN, \
- .incomplete = 0,\
- };\
-Ty_ty Ty_##NAME (void){return &Ty_##NAME##_;}
-
-struct Ty_ty_ Ty_VOID_ = 
+int Ty_isIntTy(Ty_ty ty)
 {
-    .kind = Ty_basic,
-    .align = 0,
-    .sign = 0,
-    .sign = -1,
-    .incomplete = 1
-};
-BASIC(Char,   SIZE_CHAR, SIZE_CHAR, 1);
-BASIC(UChar,  SIZE_CHAR, SIZE_CHAR, 0);
-BASIC(Short,  SIZE_SHORT, SIZE_SHORT, 1);
-BASIC(UShort, SIZE_SHORT, SIZE_SHORT, 0);
-BASIC(Int,    SIZE_INT, SIZE_INT, 1);
-BASIC(UInt,   SIZE_INT, SIZE_INT, 0);
-BASIC(Long,   SIZE_LONG, SIZE_LONG, 1);
-BASIC(ULong,  SIZE_LONG, SIZE_LONG, 0);
-BASIC(LLong,  SIZE_LONGLONG, SIZE_LONGLONG, 1);
-BASIC(ULLong, SIZE_LONGLONG, SIZE_LONGLONG, 0);
-BASIC(Float,  SIZE_FLOAT, SIZE_FLOAT, 1);
-BASIC(Double, SIZE_DOUBLE, SIZE_DOUBLE, 1);
-BASIC(LDouble, SIZE_LONGDOUBLE, SIZE_LONGDOUBLE, 1);
-#undef BASIC
-
-static int Ty_isBasic(Ty_spec spec)
-{
-    return (Ty_isVOID(spec) || Ty_isCHAR(spec) || Ty_isSHORT(spec) || Ty_isINT(spec) || Ty_isLONG(spec) ||
-        Ty_isUNSIGNED(spec) ||  Ty_isSIGNED(spec) ||
-        Ty_isDOUBLE(spec) || Ty_isFLOAT(spec));
+    if (ty == NULL) 
+        return 0;
+    if (ty == Ty_Int() || ty == Ty_UInt())//int const such as 123
+        return 1;
+    switch(ty->kind)//todo check
+    {
+        case Ty_nameTy:
+            return Ty_isIntTy(ty->u.nameTy);
+        case Ty_basicTy:
+            return Ty_isIntTy(ty->u.basicTy);
+    }
+    return 0;
 }
 
-static void Ty_linkTy(Ty_ty outer, Ty_ty inner)
+//translate spec of basic type into basic Ty
+static Ty_ty Ty_BasicTy(Ty_spec spec)
 {
+    Ty_ty p = checked_malloc(sizeof(*p));
+    p->kind = Ty_basicTy;
+    p->specs = spec->specs;
+
+    //carefully coding
+    int sign = 0, unsign = 0, isint = 0;
+    if (Ty_isSIGNED(spec))
+        sign = 1;
+    else if (Ty_isUNSIGNED(spec))
+        unsign = 1;
+
+    if (Ty_isINT(spec))
+        isint = 1;
+
+    //void
+    if (Ty_isVOID(spec))
+    {
+        p->u.basicTy = Ty_Void();
+        goto done;
+    }
+    //float
+    if (Ty_isFLOAT(spec))
+    {
+        p->u.basicTy = Ty_Float();
+        goto done;
+    }
+    //double longdouble
+    if (Ty_isDOUBLE(spec))
+    {
+        if (spec->LONG == 1)
+            p->u.basicTy = Ty_LDouble();
+        else p->u.basicTy = Ty_Double();
+        goto done;
+    }
+    //char uchar
+    if (Ty_isCHAR(spec))
+    {
+        if (unsign) p->u.basicTy = Ty_UChar();
+        else p->u.basicTy = Ty_Char();
+        goto done;
+    }
+    //short ushort
+    if (Ty_isSHORT(spec))
+    {
+        if (unsign) p->u.basicTy = Ty_UShort();
+        else p->u.basicTy = Ty_Short();
+        goto done;
+    }
+    //long ulong llong ullong
+    if (spec->LONG)
+    {
+        //long ulong
+        if (spec->LONG == 1)
+        {
+            if (unsign) p->u.basicTy = Ty_ULong();
+            else p->u.basicTy = Ty_Long();
+        }
+        //longlong ulonglong
+        else
+        {
+            if (unsign) p->u.basicTy = Ty_ULLong();
+            else p->u.basicTy = Ty_LLong();
+        }
+        goto done;
+    }
+    //int uint
+    if (isint)
+    {
+        if (unsign) p->u.basicTy = Ty_UInt();
+        else p->u.basicTy = Ty_Int();
+        goto done;
+    }
+    assert(0);    
+done:
+    return p;
+}
+
+//link bit, pointer, array, func with basic or complex types
+static Ty_ty Ty_linkTy(Ty_ty outer, Ty_ty inner)
+{
+    if (outer == NULL)
+        return inner;
+    
     switch (outer->kind)
     {
-        case Ty_name:
-            if (outer->u.name)
-                Ty_linkTy(outer->u.name, inner);
-            else
-                outer->u.name = inner;
-            break;
         case Ty_bitTy:
             if (outer->u.bitTy.ty)//todo check
                 assert(0);
             else
+            {
+                if (!Ty_isIntTy(inner))
+                    EM_error(0, "bit field's type should be int or unsigned int");//todo pos
                 outer->u.bitTy.ty = inner;
+            }
             break;
         case Ty_pointerTy:
             if (outer->u.pointerTy.ty)
@@ -111,36 +198,167 @@ static void Ty_linkTy(Ty_ty outer, Ty_ty inner)
         default:
             assert(0);
     }
+    return outer;
 }
 
-//merge spec with the first node in dec
+//calc align size incomplete
+//not handle forward declar
+//only complete type has size
+static void Ty_calcASI(Ty_ty type)
+{
+    //has been calc before
+    if (type->complete)
+        return;
+    switch(type->kind)
+    {
+        case Ty_forwardTy:
+            return;
+        case Ty_nameTy:
+            Ty_calcASI(type->u.nameTy);
+            type->complete = type->u.nameTy->complete;
+            type->align = type->u.nameTy->align;
+            if (type->complete)
+                type->size = type->u.nameTy->size;
+            break;
+        case Ty_basicTy://must complete
+            //prim type will only be init once
+            if (type->u.basicTy == NULL)
+            {
+                if (type == Ty_Void())
+                {
+                    type->complete = 1;
+                    type->align = 0;
+                    type->size = Ty_Expty(Tr_IntConst(0), Ty_Int());
+                }
+                else if (type == Ty_Char() || type == Ty_UChar())
+                {
+                    type->complete = 1;
+                    type->align = SIZE_CHAR;
+                    type->size = Ty_Expty(Tr_IntConst(SIZE_CHAR), Ty_Int());
+                }
+                else if (type == Ty_Short() || type == Ty_UShort())
+                {
+                    type->complete = 1;
+                    type->align = SIZE_SHORT;
+                    type->size = Ty_Expty(Tr_IntConst(SIZE_SHORT), Ty_Int());
+                }
+                else if (type == Ty_Int() || type == Ty_UInt())
+                {
+                    type->complete = 1;
+                    type->align = SIZE_INT;
+                    type->size = Ty_Expty(Tr_IntConst(SIZE_INT), Ty_Int());
+                }
+                else if (type == Ty_Long() || type == Ty_ULong())
+                {
+                    type->complete = 1;
+                    type->align = SIZE_LONG;
+                    type->size = Ty_Expty(Tr_IntConst(SIZE_LONG), Ty_Int());
+                }
+                else if (type == Ty_LLong() || type == Ty_ULLong())
+                {
+                    type->complete = 1;
+                    type->align = SIZE_LONGLONG;
+                    type->size = Ty_Expty(Tr_IntConst(SIZE_LONGLONG), Ty_Int());
+                }
+                else if (type == Ty_Float())
+                {
+                    type->complete = 1;
+                    type->align = SIZE_FLOAT;
+                    type->size = Ty_Expty(Tr_IntConst(SIZE_FLOAT), Ty_Int());
+                }
+                else if (type == Ty_Double())
+                {
+                    type->complete = 1;
+                    type->align = SIZE_DOUBLE;
+                    type->size = Ty_Expty(Tr_IntConst(SIZE_DOUBLE), Ty_Int());
+                }
+                else if (type == Ty_LDouble())
+                {
+                    type->complete = 1;
+                    type->align = SIZE_LONGDOUBLE;
+                    type->size = Ty_Expty(Tr_IntConst(SIZE_LONGDOUBLE), Ty_Int());
+                }
+                else
+                    assert(0);
+            }
+            else
+            {
+                type->complete = 1;
+                type->size = type->u.basicTy->size;
+                type->align = type->u.basicTy->align;
+            }
+            break;
+        case Ty_structTy://should be handled when declar not here
+            break;
+        case Ty_unionTy://should be handled when declar not here
+            break;
+        case Ty_bitTy://todo not support
+            break;
+        case Ty_pointerTy:
+            Ty_calcASI(type->u.pointerTy.ty);
+            type->complete = 1;
+            type->align = SIZE_POINTER;
+            type->size = Ty_Expty(Tr_IntConst(SIZE_POINTER), Ty_Int());
+            break;
+        case Ty_arrayTy:
+            if (type->u.arrayTy.constExp)
+            {
+                type->complete = 1;
+                type->size = type->u.arrayTy.ty->size;
+            }
+            else
+                type->complete = 0;
+            type->align = type->u.arrayTy.ty->align;
+        case Ty_funcTy:
+            type->complete = 1;
+            type->size = Ty_Expty(Tr_IntConst(0), Ty_Int());
+            type->align = 0;
+            break;
+        default:
+            assert(0);
+    }
+}
+
+//dec is a single dec, link type, add spec, calc align size incomplete
 Ty_dec Ty_specdec(Ty_spec spec, Ty_dec dec)
 {
-    unsigned long specs;
-    int LONG;
-    Ty_ty complex_type;
+    //link type and add spec
     if (spec->complex_type)
     {
-        Ty_linkTy(dec->type, spec->complex_type);
-        dec->type->specs = spec->specs;
+        spec->complex_type->specs = spec->specs;
+        dec->type = Ty_linkTy(dec->type, spec->complex_type);
     }
-    else if (Ty_isBasic(spec))
-    {
-
-    }
+    else if (Ty_isSimpleType(spec))
+        dec->type = Ty_linkTy(dec->type, Ty_BasicTy(spec));
     else
-    {
+        assert(0);
 
-    }
+    Ty_calcASI(dec->type);
+    return dec;
+}
+
+//a forward declar, init incomplete
+Ty_ty Ty_ForwardTy(Ty_ty ty)
+{
+    Ty_ty p = checked_malloc(sizeof(*p));
+    p->kind = Ty_forwardTy;
+    p->u.forwardTy = ty;
+    p->complete = 0;
+    return p;
+}
+
+//a typedef
+Ty_ty Ty_NameTy(Ty_ty ty)
+{
+    Ty_ty p = checked_malloc(sizeof(*p));
+    p->kind = Ty_nameTy;
+    p->u.nameTy = ty;
+    return p;
 }
 
 Ty_ty Ty_BitTy(Ty_ty ty, A_exp constExp)//todo
 {
     Ty_ty p = checked_malloc(sizeof(*p));
-    p->align = -1;
-    p->size = -1;
-    p->sign = -1;
-    p->incomplete = 0;
     p->kind = Ty_bitTy;
     p->u.bitTy.ty = ty;
     p->u.bitTy.constExp = constExp;//todo
@@ -150,11 +368,7 @@ Ty_ty Ty_BitTy(Ty_ty ty, A_exp constExp)//todo
 Ty_ty Ty_PointerTy(Ty_ty ty, unsigned long qual)
 {
     Ty_ty p = checked_malloc(sizeof(*p));
-    p->align = SIZE_ALIGN;
-    p->size = SIZE_POINTER;
-    p->sign = -1;
     p->kind = Ty_pointerTy;
-    p->incomplete = 0;
     p->u.pointerTy.ty = ty;
     p->u.pointerTy.qual = qual;
     return p;
@@ -163,24 +377,15 @@ Ty_ty Ty_PointerTy(Ty_ty ty, unsigned long qual)
 Ty_ty Ty_ArrayTy(Ty_ty ty, A_exp constExp)//todo
 {
     Ty_ty p = checked_malloc(sizeof(*p));
-    p->align = SIZE_ALIGN;
-    if (ty)
-        p->size = ty->size;//todo
-    p->sign = -1;
-    p->incomplete = !constExp;    
     p->kind = Ty_arrayTy;
     p->u.arrayTy.ty = ty;
     p->u.arrayTy.constExp = constExp;
     return p;
 }
 
-Ty_ty Ty_FuncTy(Ty_ty returnTy, Ty_fieldList params)
+Ty_ty Ty_FuncTy(Ty_ty returnTy, Ty_field params)
 {
     Ty_ty p = checked_malloc(sizeof(*p));
-    p->align = SIZE_ALIGN;
-    p->size = -1;
-    p->sign = -1;
-    p->incomplete = 1;    
     p->kind = Ty_funcTy;
     p->u.funcTy.returnTy = returnTy;
     p->u.funcTy.params = params;
@@ -189,10 +394,18 @@ Ty_ty Ty_FuncTy(Ty_ty returnTy, Ty_fieldList params)
 
 
 
-Ty_dec Ty_DecList(Ty_dec head, Ty_dec tail)
+Ty_decList Ty_DecList(Ty_decList list, Ty_dec tail)
 {
-    head->next = tail;
-    return head;
+    if (list.head == NULL)
+    {
+        list.head = list.tail = tail;
+    }
+    else
+    {
+        list.tail->next = tail;
+        list.tail = tail;
+    }
+    return list;
 }
 
 Ty_field Ty_Field(Ty_ty ty, S_symbol name)
@@ -203,129 +416,23 @@ Ty_field Ty_Field(Ty_ty ty, S_symbol name)
     return p;
 }
 
-Ty_fieldList Ty_FieldList(Ty_field head, Ty_fieldList tail)
+Ty_field Ty_FieldList(Ty_field head, Ty_field tail)
 {
-    Ty_fieldList p = checked_malloc(sizeof(*p));
-    p->head = head;
-    p->tail = tail;
-    return p;
+    head->next = tail;
+    return head;
 }
 
 Ty_sField Ty_SField(Ty_ty ty, S_symbol name, int offset)
 {
-    Ty_SField p = checked_malloc(sizeof(*p));
+    Ty_sField p = checked_malloc(sizeof(*p));
     p->ty = ty;
     p->name = name;
     p->offset = offset;
     return p;
 }
 
-Ty_sFieldList Ty_SFieldList(Ty_sField head, Ty_SFieldList tail)
+Ty_sField Ty_SFieldList(Ty_sField head, Ty_sField tail)
 {
-    Ty_SFieldList p = checked_malloc(sizeof(*p));
-    p->head = head;
-    p->tail = tail;
-    return p;
+    head->next = tail;
+    return head;
 }
-
-/*
-//一个星号，不需要参数ty
-static struct Ty_ty_ typointer = {Ty_pointer};
-Ty_ty Ty_Pointer(void){
-    return &typointer;
-}
-
-
-Ty_ty Ty_Name(S_symbol sym, Ty_ty ty){
-    Ty_ty t = checked_malloc(sizeof(*t));
-    t->kind = Ty_name;
-    t->u.name.name = sym;
-    t->u.name.type = ty;
-
-    return t;
-}
-
-Ty_ty Ty_Array(Ty_ty ty){
-    Ty_ty t = checked_malloc(sizeof(*t));
-    t->kind = Ty_array;
-    t->u.array.array = ty;
-    t->u.array.num = -1;
-
-    return t;
-}
-
-Ty_ty Ty_Array(Ty_ty ty, int num){
-    Ty_ty t = checked_malloc(sizeof(*t));
-    t->kind = Ty_array;
-    t->u.array.array = ty;
-    t->u.array.num = num;
-
-    return t;
-}
-
-
-Ty_ty Ty_Struct(Ty_fieldList fields){
-    Ty_ty t = checked_malloc(sizeof(*t));
-    t->kind = Ty_struct;
-    t->u.struct_ty = fields;
-
-    return t;
-}
-
-Ty_ty Ty_Union(Ty_FieldList fields){
-    Ty_ty t = checked_malloc(sizeof(*t));
-    t->kind = Ty_union;
-    t->u.union_ty = fields;
-
-    return t;
-}
-
-Ty_ty Ty_Enum(Ty_ty ty){
-    Ty_ty t = checked_malloc(sizeof(*t));
-    t->kind = Ty_enum;
-    t->u.enum_ty = ty;
-
-    return t;
-}
-
-Ty_ty Ty_Decpointer(Ty_ty type, Ty_ty pointer){
-    Ty_ty t = checked_malloc(sizeof(*t));
-    t->kind = Ty_decpointer;
-    t->u.decpointer.type = type;
-    t->u.decpointer.pointer = pointer;
-
-    return t;
-}
-
-Ty_ty Ty_Constant(Ty_ty type){
-    Ty_ty t = checked_malloc(sizeof(*t));
-    t->kind = Ty_constant;
-    t->u.constant_ty = type;
-
-    return t;
-}
-
-
-
-Ty_field Ty_Field(S_symbol name, Ty_ty ty){
-    Ty_field t = checked_malloc(sizeof(*t));
-    t->type = ty;
-    t->name = name;
-    return t;
-}
-
-Ty_fieldList Ty_FieldList(Ty_field head, Ty_fieldList tail){
-    Ty_fieldList t = checked_malloc(sizeof(*t));
-    t->head = head;
-    t->tail = tail;
-    return t;
-};
-
-Ty_tyList Ty_TyList(Ty_ty head, Ty_tyList tail){
-    Ty_tyList t = checked_malloc(sizeof(*t));
-    t->head = head;
-    t->tail = tail;
-    return &t;
-}
-*/
-

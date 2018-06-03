@@ -35,7 +35,7 @@ struct E_namespace_
     S_table lenv;//label     symbol->Temp_label
     S_table tenv;//tag       symbol->type
     S_table venv;//ordinary  symbol->E_enventry
-    //S_table menv;//member    symbol->E_enventry
+    S_table menv;//member    symbol->E_enventry
 };
 
 struct E_linkage_
@@ -51,5 +51,8 @@ struct E_linkage_
 //init namespaces
 E_namespace E_Namespace(void);
 E_linkage E_Linkage(void);
+
+E_namespace E_BeginScope(S_scope scope, E_namespace space);
+E_namespace E_EndScope(E_namespace space);
 
 #endif

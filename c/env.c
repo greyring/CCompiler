@@ -8,7 +8,7 @@ E_namespace E_Namespace(void)
     p->lenv = NULL;
     p->tenv = S_empty(S_FILE);
     p->venv = S_empty(S_FILE);
-    //p->menv = NULL;
+    p->menv = NULL;
     return p;
 }
 
@@ -19,6 +19,24 @@ E_linkage E_Linkage(void)
     p->inlink = S_empty(S_INLINK);
     p->nolink = NULL;
     return p;
+}
+
+E_namespace E_BeginScope(S_scope scope, E_namespace space)
+{
+    space->lenv = S_beginScope(scope, space->lenv);
+    space->tenv = S_beginScope(scope, space->tenv);
+    space->venv = S_beginScope(scope, space->venv);
+    space->menv = S_beginScope(scope, space->menv);
+    return space;
+}
+
+E_namespace E_EndScope(E_namespace space)
+{
+    space->lenv = S_endScope(space->lenv);
+    space->tenv = S_endScope(space->tenv);
+    space->venv = S_endScope(space->venv);
+    space->menv = S_endScope(space->menv);
+    return space;
 }
 
 /*

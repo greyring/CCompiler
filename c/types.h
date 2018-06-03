@@ -1,22 +1,23 @@
 #ifndef _TYPES_H_
 #define _TYPES_H_
-//no qual
-//used only for type checking
-//size and align are not included
+//used for type checking and help to allocate mem
 
 #include "absync.h"
 #include "symbol.h"
 #include "translate.h"
 
-
 typedef struct Ty_spec_ *Ty_spec;
-typedef struct Ty_dec_ *Ty_dec;
-typedef struct Ty_decList_ *Ty_decList;
+typedef struct Ty_dec_ *Ty_dec;//a list of dec
+typedef struct Ty_decList_ Ty_decList;//notice this is a struct
 typedef struct Ty_ty_ *Ty_ty;
-typedef struct Ty_field_ *Ty_field;
-typedef struct Ty_fieldList_ *Ty_fieldList;
-typedef struct Ty_sField_ *Ty_sField;
-typedef struct Ty_sFieldList_ * Ty_sFieldList;
+typedef struct Ty_field_ *Ty_field;//a list of field
+typedef struct Ty_sField_ *Ty_sField;//a list of sfield
+
+struct Ty_expty
+{
+    Tr_exp exp;
+    Ty_ty ty;
+};
 
 struct Ty_spec_
 {
@@ -36,25 +37,30 @@ struct Ty_dec_
 struct Ty_decList_
 {
     Ty_dec head;
-    Ty_decList tail;
+    Ty_dec tail;
 };
 
 struct Ty_ty_
 {
-    unsigned long specs;
-    int align, size;
+    unsigned long specs;//only contains storage spec, qual, func type
+    int align;
+    struct Ty_expty size;//for variable length array
+    int complete;//default to 0
     enum{
-        Ty_name,
-        Ty_basic,
-        Ty_structTy,//struct and union
+        Ty_forwardTy,//forward declar for struct union func ... , different from nameTy
+        Ty_nameTy,
+        Ty_basicTy,
+        Ty_structTy,//struct
+        Ty_unionTy,
         Ty_bitTy,
         Ty_pointerTy,
         Ty_arrayTy,
         Ty_funcTy,
     }kind;
     union{
-        Ty_ty name;
-        Ty_SFieldList structTy;
+        Ty_ty nameTy, forwardTy;
+        Ty_ty basicTy;//because basic may have specs so...
+        Ty_sField structTy;
         struct
         {
             Ty_ty ty;
@@ -72,7 +78,7 @@ struct Ty_ty_
         }arrayTy;
         struct{
             Ty_ty returnTy;
-            Ty_fieldList params;
+            Ty_field params;
         }funcTy;
     }u;
 };
@@ -82,12 +88,7 @@ struct Ty_field_
 {
     Ty_ty ty;
     S_symbol name;
-};
-
-struct Ty_fieldList_
-{
-    Ty_field head;
-    Ty_fieldList tail;
+    Ty_field next;
 };
 
 //for struct and union
@@ -96,26 +97,26 @@ struct Ty_sField_
     Ty_ty ty;
     S_symbol name;
     int offset;
+    Ty_sField next;
 };
 
-struct Ty_sFieldList_
-{
-    Ty_sField head;
-    Ty_sFieldList tail;
-};
+#define DECLAR(type, num) \
+enum {Ty_##type = (unsigned long)1<<num}; \
+unsigned long Ty_is##type(Ty_spec spec);
 
-#define DECLAR(NAME) \
-extern const unsigned long Ty_##NAME; \
-unsigned long Ty_is##NAME(Ty_spec spec);
-
-DECLAR(CONST); DECLAR(VOLATILE); DECLAR(RESTRICT);
-DECLAR(TYPEDEF); DECLAR(EXTERN); DECLAR(STATIC); DECLAR(AUTO); DECLAR(REGISTER);
-DECLAR(INLINE);
-DECLAR(VOID); DECLAR(CHAR); DECLAR(SHORT); DECLAR(INT); DECLAR(INT); DECLAR(LONG);
-DECLAR(FLOAT); DECLAR(DOUBLE); DECLAR(SIGNED); DECLAR(UNSIGNED); 
-DECLAR(STRUCT); DECLAR(UNION); DECLAR(ENUM);
-
-unsigned long Ty_isSimpleType(Ty_spec spec);
+//qualifier
+DECLAR(CONST, 0); DECLAR(VOLATILE, 1); DECLAR(RESTRICT, 2);
+//storage type
+DECLAR(TYPEDEF, 3); DECLAR(EXTERN, 4); DECLAR(STATIC, 5); DECLAR(AUTO, 6); DECLAR(REGISTER, 7);
+//func type
+DECLAR(INLINE, 8);
+//prim type
+DECLAR(VOID, 9);
+DECLAR(CHAR, 10); DECLAR(SHORT, 11); DECLAR(INT, 12);
+DECLAR(FLOAT, 13); DECLAR(DOUBLE, 14);
+DECLAR(SIGNED, 15); DECLAR(UNSIGNED, 16);
+DECLAR(STRUCT, 17); DECLAR(UNION, 18); DECLAR(ENUM, 19);
+#undef DECLAR
 
 Ty_ty Ty_Void();
 Ty_ty Ty_Char();
@@ -132,20 +133,25 @@ Ty_ty Ty_Float();
 Ty_ty Ty_Double();
 Ty_ty Ty_LDouble();
 
-Ty_ty Ty_ConstP();
+//test spec
+unsigned long Ty_isLong(Ty_spec spec);
+unsigned long Ty_isSimpleType(Ty_spec spec);
+
+//test type
+int Ty_isIntTy(Ty_ty ty);
 
 
-
-
-Ty_dec Ty_DecList(Ty_dec head, Ty_dec tail);
+Ty_ty Ty_ForwardTy(Ty_ty ty);//init incomplete
+Ty_ty Ty_NameTy(Ty_ty ty);
 Ty_ty Ty_BitTy(Ty_ty ty, A_exp constExp);
 Ty_ty Ty_PointerTy(Ty_ty ty, unsigned long qual);
 Ty_ty Ty_ArrayTy(Ty_ty ty, A_exp constExp);
-Ty_ty Ty_FuncTy(Ty_ty returnTy, Ty_fieldList params);
+Ty_ty Ty_FuncTy(Ty_ty returnTy, Ty_field params);
 
+Ty_decList Ty_DecList(Ty_decList head, Ty_dec tail);//return a struct
 Ty_field Ty_Field(Ty_ty ty, S_symbol name);
-Ty_fieldList Ty_FieldList(Ty_field head, Ty_fieldList tail);
+Ty_field Ty_FieldList(Ty_field head, Ty_field tail);
 Ty_sField Ty_SField(Ty_ty ty, S_symbol name, int offset);
-Ty_sFieldList Ty_SFieldList(Ty_sField head, Ty_SFieldList tail);
+Ty_sField Ty_SFieldList(Ty_sField head, Ty_sField tail);
 
 #endif

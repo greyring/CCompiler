@@ -9,69 +9,13 @@
 struct expty Expty(Tr_exp exp, Ty_ty ty);
 static Ty_ty transSUType(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_type type);
 static Ty_spec transSpec(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_spec spec);
-static Ty_dec transDec(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_dec dec);
+static Ty_decList transDec(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_dec dec);
 
 struct expty Expty(Tr_exp exp, Ty_ty ty)
 {
     struct expty e;
     e.exp = exp; e.ty = ty;
     return e;
-}
-
-//add variable to struct or union, calc size
-static void _transSDeclar(Tr_level level, E_linkage linkenv, E_namespace nameenv, Ty_ty sty, A_declaration dec)
-{
-    switch(dec->kind)
-    {
-        case A_simple_declaration:
-        {
-            Ty_spec spec = transSpec(level, linkenv, nameenv, dec->u.simple.spec);
-            Ty_dec   dec_ = transDec(level, linkenv, nameenv, dec->u.simple.dec);
-            Ty_dec temp = dec_;
-            while(temp)
-            {
-                //todo
-                Ty_dec declar = Ty_specdec(spec,dec)
-                temp = temp->next;
-            }
-            break;
-        }
-        case A_seq_declaration:
-            _transSDeclar(level, linkenv, nameenv, sty, dec->u.seq.declaration);
-            _transSDeclar(level, linkenv, nameenv, sty, dec->u.seq.next);
-            break;
-        default:
-            assert(0);
-    }
-}
-
-//translate Struct or Union type
-static Ty_ty transSUType(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_type type)
-{
-    Ty_ty resty = checked_malloc(sizeof(*resty));
-    int isStruct = 0;
-
-    assert(type->kind == A_struct_union_type);
-    isStruct = type->u.struct_union.struct_union == A_STRUCT;
-    resty->kind = isStruct ? Ty_structTy : Ty_unionTy;
-    resty->sign = 0;
-    resty->align = SIZE_ALIGN;
-    resty->size = 0;
-    resty->incomplete = 1;
-
-    A_declaration dec_list = type->u.struct_union.dec_list;
-    if (dec_list != NULL)
-    {
-        if (type->u.struct_union.id)
-            S_enter(nameenv->tenv, type->u.struct_union.id, resty);
-        nameenv->tenv = S_beginScope(S_BLOCK, nameenv->tenv);
-        nameenv->venv = S_beginScope(S_BLOCK, nameenv->venv);
-        _transSDeclar(level, linkenv, nameenv, resty, dec_list);
-        nameenv->tenv = S_endScope(nameenv->tenv);
-        nameenv->venv = S_endScope(nameenv->venv);
-    }
-
-    return resty;
 }
 
 //trans type spec
@@ -191,10 +135,10 @@ static void _transType(Tr_level level, E_linkage linkenv, E_namespace nameenv, T
             else 
             {
                 Ty_ty t = S_look(nameenv->venv, type->u.typeid);
-                if (t == NULL || t->kind != Ty_name)
+                if (t == NULL || t->kind != Ty_nameTy)
                     EM_error(type->pos, "no such type");
                 else
-                    ty_spec->complex_type = t->u.name;
+                    ty_spec->complex_type = t->u.nameTy;
             }
             break;
         default:
@@ -245,8 +189,7 @@ static void _transSpec(Tr_level level, E_linkage linkenv, E_namespace nameenv, T
 			break;
 		case A_seq_spec:
 			_transSpec(level, linkenv, nameenv, ty_spec, spec->u.seq.spec);
-            if (spec->u.seq.next)
-			    _transSpec(level, linkenv, nameenv, ty_spec, spec->u.seq.next);
+		    _transSpec(level, linkenv, nameenv, ty_spec, spec->u.seq.next);
 			break;
 		case A_type_spec:
             _transType(level, linkenv, nameenv, ty_spec, spec->u.type);
@@ -289,21 +232,15 @@ static void _transPointer(Tr_level level, E_linkage linkenv, E_namespace nameenv
     }
 }
 
-//put the dec in ty_dec and return
-static void _transDec(Tr_level level, E_linkage linkenv, E_namespace nameenv, Ty_dec ty_dec, A_dec dec)
+//dec: not a seq dec 
+//return: single dec
+static Ty_dec _transDec(Tr_level level, E_linkage linkenv, E_namespace nameenv, Ty_dec ty_dec, A_dec dec)
 {
     switch(dec->kind)
     {
         case A_simple_dec:
             ty_dec->sym = dec->u.simple;
             break;
-        case A_seq_dec:
-        {
-            _transDec(level, linkenv, nameenv, ty_dec, dec->u.seq.dec);
-            Ty_dec tail = transDec(level, linkenv, nameenv, dec->u.seq.next);
-            ty_dec = Ty_DecList(ty_dec, tail);
-            break;
-        }
         case A_init_dec:
             ty_dec->init = dec->u.init.init;
             _transDec(level, linkenv, nameenv, ty_dec, dec->u.init.dec);
@@ -325,7 +262,7 @@ static void _transDec(Tr_level level, E_linkage linkenv, E_namespace nameenv, Ty
             break;
         case A_func_dec:
         {
-            Ty_fieldList params = transParam(level, linkenv, nameenv, dec->u.func.param_list);//todo
+            Ty_field params = transParam(level, linkenv, nameenv, dec->u.func.param_list);//todo
             ty_dec->type = Ty_FuncTy(ty_dec->type, params);
             _transDec(level, linkenv, nameenv, ty_dec, dec->u.func.dec);
             break;
@@ -335,13 +272,98 @@ static void _transDec(Tr_level level, E_linkage linkenv, E_namespace nameenv, Ty
     }
 }
 
-//trans declator
-static Ty_dec transDec(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_dec dec)
+static Ty_decList transDec(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_dec dec)
 {
-    Ty_dec p = checked_malloc(sizeof(*p));
-    _transDec(level, linkenv, nameenv, p, dec);
-    return p;
+    Ty_dec tail = checked_malloc(sizeof(*tail));
+    Ty_decList decList;
+    decList.head = decList.tail = NULL;
+    switch(dec->kind)
+    {
+        case A_seq_dec:
+            decList = transDec(level, linkenv, nameenv, dec->u.seq.dec);//seq
+            tail = _transDec(level, linkenv, nameenv, tail, dec->u.seq.next);//not a seq
+            decList = Ty_DecList(decList, tail);
+            break;
+        default:
+            tail = _transDec(level, linkenv, nameenv, tail, dec);//not a seq
+            decList = Ty_DecList(decList, tail);
+            break;
+    }
+    return decList;
 }
+
+
+
+
+
+//add variable to struct or union, calc size
+static void _transSDeclar(Tr_level level, E_linkage linkenv, E_namespace nameenv, Ty_ty sty, A_declaration dec)
+{
+    switch(dec->kind)
+    {
+        case A_simple_declaration:
+        {
+            Ty_spec spec = transSpec(level, linkenv, nameenv, dec->u.simple.spec);
+            Ty_dec  dec_ = transDec(level, linkenv, nameenv, dec->u.simple.dec).head;
+            Ty_dec temp = dec_;
+            while(temp)
+            {
+                //todo
+                //link type, update size and align
+                Ty_dec declar = Ty_specdec(spec,dec);
+                temp = temp->next;
+            }
+            break;
+        }
+        case A_seq_declaration:
+            _transSDeclar(level, linkenv, nameenv, sty, dec->u.seq.declaration);
+            _transSDeclar(level, linkenv, nameenv, sty, dec->u.seq.next);
+            break;
+        default:
+            assert(0);
+    }
+}
+
+//translate Struct or Union type
+static Ty_ty transSUType(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_type type)
+{
+    Ty_ty resty = NULL;
+    A_declaration dec_list = type->u.struct_union.dec_list;
+
+    if (dec_list != NULL)//declaration
+    {
+        resty = checked_malloc(sizeof(*resty));
+        resty->kind = u.struct_union.struct_union == A_STRUCT ? Ty_structTy : Ty_unionTy;
+        
+        //add forward declar
+        if (type->u.struct_union.id
+            && (S_look(nameenv->tenv, u->struct_union.id) == NULL))
+        {
+            //tenv id -> [forward] (NULL)
+            Ty_ty ty = Ty_ForwardTy(NULL);
+            S_enter(nameenv->tenv, u->struct_union.id, ty);
+        }
+        
+        nameenv = E_BeginScope(nameenv);
+        _transSDeclar(level, linkenv, nameenv, sty, dec_list);
+        //todo bind or link forward type
+        nameenv = E_EndScope(nameenv);
+    }
+    else//reference
+    {
+        resty = S_look(nameenv->tenv, u->struct_union.id);
+        if (resty == NULL)
+        {
+            //tenv id -> [forward] (NULL)
+            Ty_ty ty = Ty_ForwardTy(NULL);
+            S_enter(nameenv->tenv, u->struct_union.id, ty);
+            resty = S_look(nameenv->tenv, u->struct_union.id);
+        }
+    }
+
+    return resty;
+}
+
 
 /*
 struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_exp a){
