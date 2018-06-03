@@ -3,12 +3,14 @@
 
 #include "types.h"
 
-typedef struct E_envs_ *E_envs;
+typedef struct E_namespace_ *E_namespace;
+typedef struct E_linkage_ *E_linkage;
 typedef struct E_enventry_ *E_enventry;
 
-//值环境，symbol<->enventry
+/*
 struct E_enventry_
 {
+    int incomplete;
     enum{
         E_varEntry,
         E_funEntry
@@ -16,6 +18,7 @@ struct E_enventry_
     union
     {
         struct{
+            Tr_access access;
             Ty_ty ty;
         }var;
         struct{
@@ -24,25 +27,29 @@ struct E_enventry_
         }fun;
     }u;
 };
+*/
 
-struct E_envs_ //这是干嘛的
+//namespaces
+struct E_namespace_
 {
-    S_table tenv;
-    S_table venv;
-    S_table tagenv; //这是干嘛的
+    S_table lenv;//label     symbol->Temp_label
+    S_table tenv;//tag       symbol->type
+    S_table venv;//ordinary  symbol->E_enventry
+    //S_table menv;//member    symbol->E_enventry
 };
 
-//建立一个varEntry
-E_enventry E_VarEntry(Ty_ty ty);
-//建立一个funEntry
-E_enventry E_FunEntry(Ty_tyList formals, Ty_ty result);
+struct E_linkage_
+{
+    S_table exlink;//symbol->Tr_access
+    S_table inlink;//symbol->Tr_access
+    S_table nolink;//symbol->Tr_access
+};
 
+//E_enventry E_VarEntry(Ty_ty ty);
+//E_enventry E_FunEntry(Ty_tyList formals, Ty_ty result);
 
-//建立一个envs
-E_envs E_base_envs(void);
+//init namespaces
+E_namespace E_Namespace(void);
+E_linkage E_Linkage(void);
 
-
-//建立基本环境，将int绑定到Ty_INT，string绑定到Ty_STRING
-S_table E_base_tenv(void);
-//基本enventry环境
-S_table E_base_venv(void);
+#endif

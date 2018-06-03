@@ -6,8 +6,8 @@
 #include <string.h>
 #include <assert.h>
 
-static S_symbol hashtable[S_SIZE];//give each string an address
-static struct S_symbol_ marksym = {"<mark>", 0};
+//give each string an address
+static S_symbol hashtable[S_SIZE];
 
 static S_symbol insert(string name, S_symbol next)
 {
@@ -26,7 +26,7 @@ static unsigned int hash(char *s0)
     return h;
 }
 
-//提供string，如果散列表里存在就返回这个symbol，如果不存在，就建立这个symbol再返回它
+//create one only if not exist
 S_symbol _S_symbol(string name)
 {
     int index;
@@ -42,41 +42,45 @@ S_symbol _S_symbol(string name)
     return sym;
 }
 
-//建新的table
-S_table S_empty(void)
+S_table S_empty(S_scope scope)
 {
-  return TAB_empty();
+    S_table p = checked_malloc(sizeof(*p));
+    p->parent = NULL;
+    p->scope = scope;
+    p->table = TAB_empty();
+    return p;
 }
 
-//替换一个symbol，隐藏旧的symbol，便于撤销操作
 void S_enter(S_table t, S_symbol sym, void *value)
 {
-    TAB_enter(t, sym, value);
+    TAB_enter(t->table, sym, value);
 }
 
-//查找
 void *S_look(S_table t, S_symbol sym)
 {
-    return TAB_lookup(t, sym);
+    return TAB_look(t->table, sym);
 }
 
-//开始新scope，在散列表的头部增加一个<mark>标志，作为scope开始标志，便于撤销操作
-void S_beginScope(S_table t)
+//enter a scope
+S_table S_beginScope(S_scope scope, S_table t)
 {
-    S_enter(t, &marksym, NULL);
+    S_table p = checked_malloc(sizeof(*p));
+    p->parent = t;
+    p->scope = scope;
+    p->table = TAB_empty();
+    return p;
 }
 
-//取消scope，pop直到遇到<mark>为止
-void S_endScope(S_table t)
+//exit a scope
+S_table S_endScope(S_table t)
 {
-    S_symbol s;
-    do{
-        s = TAB_pop(t);
-    }while(s != &marksym);
+    S_table temp = t->parent;
+    TAB_delete(t->table);
+    free(t);
+    return temp;
 }
 
-//通过symbol查询变量名id
 string S_name(S_symbol sym)
 {
- return sym->name;
+    return sym->name;
 }

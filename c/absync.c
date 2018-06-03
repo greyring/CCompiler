@@ -3,6 +3,61 @@
 #include "util.h"
 #include <string.h>
 
+#define A_0(type, name) \
+A_##type _A_##name##_##type (A_pos pos)\
+{\
+    A_##type p = checked_malloc(sizeof(*p));\
+    p->kind = A_##name##_##type;\
+    p->pos = pos;\
+    return p;\
+}
+
+#define A_1(type, name, atype) \
+A_##type _A_##name##_##type (A_pos pos, atype a)\
+{\
+    A_##type p = checked_malloc(sizeof(*p));\
+    p->kind = A_##name##_##type;\
+    p->pos = pos;\
+    p->u.name = a;\
+    return p;\
+}
+
+#define A_2(type, name, atype, a, btype, b) \
+A_##type _A_##name##_##type (A_pos pos, atype a, btype b)\
+{\
+    A_##type p = checked_malloc(sizeof(*p));\
+    p->kind = A_##name##_##type;\
+    p->pos = pos;\
+    p->u.name.a = a;\
+    p->u.name.b = b;\
+    return p;\
+}
+
+#define A_3(type, name, atype, a, btype, b, ctype, c) \
+A_##type _A_##name##_##type (A_pos pos, atype a, btype b, ctype c)\
+{\
+    A_##type p = checked_malloc(sizeof(*p));\
+    p->kind = A_##name##_##type;\
+    p->pos = pos;\
+    p->u.name.a = a;\
+    p->u.name.b = b;\
+    p->u.name.c = c;\
+    return p;\
+}
+
+#define A_4(type, name, atype, a, btype, b, ctype, c, dtype, d) \
+A_##type _A_##name##_##type (A_pos pos, atype a, btype b, ctype c, dtype d)\
+{\
+    A_##type p = checked_malloc(sizeof(*p));\
+    p->kind = A_##name##_##type;\
+    p->pos = pos;\
+    p->u.name.a = a;\
+    p->u.name.b = b;\
+    p->u.name.c = c;\
+    p->u.name.d = d;\
+    return p;\
+}
+
 A_1(exp, id, S_symbol);
 A_1(exp, intexp, int);
 A_1(exp, floatexp, double);
@@ -88,3 +143,9 @@ A_1(stat, returnstat, A_exp);
 A_1(def, simple, A_declaration);
 A_2(def, seq, A_def, def, A_def, next);
 A_4(def, func, A_spec, spec, A_dec, func, A_declaration, args, A_stat, stat);
+
+#undef A_0
+#undef A_1
+#undef A_2
+#undef A_3
+#undef A_4

@@ -1,212 +1,151 @@
-/*
-*  types.h 只包装了type，没包装specifier，specifier处理过程有点复杂先不考虑
-*  2018.5.30
-*
-*/
-
 #ifndef _TYPES_H_
 #define _TYPES_H_
 //no qual
 //used only for type checking
 //size and align are not included
 
+#include "absync.h"
 #include "symbol.h"
+#include "translate.h"
 
+
+typedef struct Ty_spec_ *Ty_spec;
+typedef struct Ty_dec_ *Ty_dec;
+typedef struct Ty_decList_ *Ty_decList;
 typedef struct Ty_ty_ *Ty_ty;
 typedef struct Ty_field_ *Ty_field;
 typedef struct Ty_fieldList_ *Ty_fieldList;
-typedef struct Ty_tyList_ *Ty_tyList;
+typedef struct Ty_sField_ *Ty_sField;
+typedef struct Ty_sFieldList_ * Ty_sFieldList;
 
-/*future
-typedef struct
+struct Ty_spec_
 {
-    char CONST:1    = 0;
-    char VOLATILE:1 = 0;
-    char RESTRICT:1 = 0;
-}Ty_qual_;
-*/
+    unsigned long specs;
+    int LONG;
+    Ty_ty complex_type;
+};
 
-// 一个类型
-struct 
-Ty_ty_
+struct Ty_dec_
 {
-    //Ty_qual_ qual;
+    A_init    init;
+    Ty_ty    type;
+    S_symbol sym;
+    Ty_dec   next;
+};
+
+struct Ty_decList_
+{
+    Ty_dec head;
+    Ty_decList tail;
+};
+
+struct Ty_ty_
+{
+    unsigned long specs;
+    int align, size;
     enum{
-        
-        Ty_nil,
-        Ty_array, //二次包装
-        Ty_name, // 二次包装
-        Ty_pointer, // 星号*
-        Ty_void,
-        Ty_char,
-        Ty_short,
-        Ty_int,
-        Ty_long,
-        Ty_float,
-        Ty_double,
-        Ty_signed,
-        Ty_unsigned,
-        Ty_constant, //二次包装
-        Ty_struct, // 二次包装
-        Ty_union, // 二次包装
-        Ty_enum, // 二次包装
-        Ty_decpointer // int* 二次包装
-        //后面可能出现别的需要用到的type，再往后面加
-        
-/*
-        //以下是specifier
-        Ty_spec_ty,
-            Ty_specifier_ty, //包括以下类型
-                Ty_storage_ty,//以下是storage type的类型
-                    Ty_typedef_ty, 
-                    Ty_extern_ty,
-                    Ty_static_ty,
-                    Ty_auto_ty,
-                    Ty_register_ty,
-                // Ty_type_ty, type下文再描述
-                Ty_qualifier_ty, //以下是qualifier的类型
-                    Ty_const_ty,
-                    Ty_restrict_ty,
-                    Ty_volatile_ty,
-                Ty_func_ty, //以下是function的类型
-                    Ty_inline_ty,
-                Ty_spec_seq_ty, //这是seq的类型
-
-        //以下是A_type
-        Ty_type_ty,
-            Ty_primtype_ty, //以下是primary type的类型，这都是基本类型，参数使用void
-                Ty_void_ty,
-                Ty_char_ty,
-                Ty_short_ty,
-                Ty_int_ty,
-                Ty_long_ty,
-                Ty_float_ty,
-                Ty_double_ty,
-                Ty_signed_ty,
-                Ty_unsigned_ty,
-                Ty_struct_ty,
-                Ty_union_ty,
-                Ty_enum_ty,    
-            Ty_typeid_ty, //这是typeid，这里有点问题，下面写函数的时候再考虑
-            Ty_struct_union_ty, //这是struct or union类型，包括以下类型
-                // Ty_primtype_ty //上文有了
-                // Ty_typeid_ty //上文有了
-                // Ty_declaration_ty // 下文再描述
-            Ty_enumtype_ty,
-                // Ty_typeid_ty //上文有了
-                // Ty_init_ty //下文再描述
-        
-        //以下是A_pointer类型
-        Ty_pointer_ty,
-            // Ty_spec_ty //上文有了
-            Ty_pointer_seq_ty,
-        
-        //以下是A_param类型
-        Ty_param_ty,
-            // Ty_param_ty
-            Ty_param_seq_ty,
-            Ty_param_dec_ty,
-                // Ty_spec_ty,
-                // Ty_dec_ty,
-        
-        //以下是A_dec类型
-        Ty_dec_ty,
-            Ty_simple_ty, //这有点问题
-            Ty_dec_seq_ty,
-            Ty_subinit_ty,
-                // Ty_dec_ty,
-                // Ty_init_ty //下文再描述
-            Ty_subbit_ty,
-                // Ty_exp_ty //这里有点问题
-            Ty_subpointer_ty,
-            Ty_subarray_ty,
-            // Ty_dec_ty,
-            Ty_subfunc_ty,
-            Ty_funcid_ty,
-        
-        //以下是A_declaration的类型
-*/
-
-       
-    }kind; //kind应该包括所有数据类型
+        Ty_name,
+        Ty_basic,
+        Ty_structTy,//struct and union
+        Ty_bitTy,
+        Ty_pointerTy,
+        Ty_arrayTy,
+        Ty_funcTy,
+    }kind;
     union{
+        Ty_ty name;
+        Ty_SFieldList structTy;
+        struct
+        {
+            Ty_ty ty;
+            A_exp constExp;
+        }bitTy;
+        struct
+        {
+            Ty_ty ty;
+            unsigned long qual;
+        }pointerTy;
+        struct
+        {
+            Ty_ty ty;
+            A_exp constExp;
+        }arrayTy;
         struct{
-            S_symbol name;
-            Ty_ty    type;
-        }name;
-
-        struct{
-            Ty_ty array;
-            int     num;//-1:not specified
-        }array;//for 2 arrays, if num is given, they should be same
-        
-        Ty_fieldList struct_ty;
-        Ty_fieldList union_ty;
-        Ty_ty enum_ty;
-
-        //带类型的星号，类型+星号
-        struct{
-            Ty_ty type;
-            Ty_ty pointer;
-        }decpointer;
-
-        Ty_ty constant_ty;
-
+            Ty_ty returnTy;
+            Ty_fieldList params;
+        }funcTy;
     }u;
 };
 
-struct 
-Ty_field_
+//for param
+struct Ty_field_
 {
-    //Ty_qual_ qual;
-    //A_exp     bit;//may be null
-    //Ty_fields next;
-    Ty_ty    type;
-    S_symbol name;//may be null
-
-    //这是什么东西
-    // int    offset;
-    // int    size;
-    // int    align;
+    Ty_ty ty;
+    S_symbol name;
 };
 
-struct 
-Ty_fieldList_{
+struct Ty_fieldList_
+{
     Ty_field head;
     Ty_fieldList tail;
 };
 
-struct 
-Ty_tyList_{
-    Ty_ty head;
-    Ty_tyList tail;
+//for struct and union
+struct Ty_sField_
+{
+    Ty_ty ty;
+    S_symbol name;
+    int offset;
 };
 
-Ty_ty Ty_Void(void); //基本类型的绑定，参数是void
-Ty_ty Ty_Nil(void);
-Ty_ty Ty_Pointer(void);
-Ty_ty Ty_Char(void);
-Ty_ty Ty_Short(void);
-Ty_ty Ty_Int(void);
-Ty_ty Ty_Long(void);
-Ty_ty Ty_Float(void);
-Ty_ty Ty_Double(void);
-Ty_ty Ty_Signed(void);
-Ty_ty Ty_Unsigned(void);
+struct Ty_sFieldList_
+{
+    Ty_sField head;
+    Ty_sFieldList tail;
+};
 
-// 复杂类型的包装，把基本类型的Ty_ty二次包装成Ty_ty
-Ty_ty Ty_Name(S_symbol sym, Ty_ty ty);
-Ty_ty Ty_Array(Ty_ty ty);
-Ty_ty Ty_Array(Ty_ty ty, int num);
-Ty_ty Ty_Struct(Ty_fieldList fields);
-Ty_ty Ty_Union(Ty_fieldList fields);
-Ty_ty Ty_Enum(Ty_ty ty);
-Ty_ty Ty_Decpointer(Ty_ty type, Ty_ty pointer);
-Ty_ty Ty_Constant(Ty_ty type);
+#define DECLAR(NAME) \
+extern const unsigned long Ty_##NAME; \
+unsigned long Ty_is##NAME(Ty_spec spec);
 
-//一个包装好的binding，把symbol和Ty_ty绑定成一个Ty_field
-Ty_field Ty_Field(S_symbol name, Ty_ty ty, Ty_field next);//todo qual bit
+DECLAR(CONST); DECLAR(VOLATILE); DECLAR(RESTRICT);
+DECLAR(TYPEDEF); DECLAR(EXTERN); DECLAR(STATIC); DECLAR(AUTO); DECLAR(REGISTER);
+DECLAR(INLINE);
+DECLAR(VOID); DECLAR(CHAR); DECLAR(SHORT); DECLAR(INT); DECLAR(INT); DECLAR(LONG);
+DECLAR(FLOAT); DECLAR(DOUBLE); DECLAR(SIGNED); DECLAR(UNSIGNED); 
+DECLAR(STRUCT); DECLAR(UNION); DECLAR(ENUM);
 
+unsigned long Ty_isSimpleType(Ty_spec spec);
+
+Ty_ty Ty_Void();
+Ty_ty Ty_Char();
+Ty_ty Ty_UChar();
+Ty_ty Ty_Short();
+Ty_ty Ty_UShort();
+Ty_ty Ty_Int();
+Ty_ty Ty_UInt();
+Ty_ty Ty_Long();
+Ty_ty Ty_ULong();
+Ty_ty Ty_LLong();
+Ty_ty Ty_ULLong();
+Ty_ty Ty_Float();
+Ty_ty Ty_Double();
+Ty_ty Ty_LDouble();
+
+Ty_ty Ty_ConstP();
+
+
+
+
+Ty_dec Ty_DecList(Ty_dec head, Ty_dec tail);
+Ty_ty Ty_BitTy(Ty_ty ty, A_exp constExp);
+Ty_ty Ty_PointerTy(Ty_ty ty, unsigned long qual);
+Ty_ty Ty_ArrayTy(Ty_ty ty, A_exp constExp);
+Ty_ty Ty_FuncTy(Ty_ty returnTy, Ty_fieldList params);
+
+Ty_field Ty_Field(Ty_ty ty, S_symbol name);
 Ty_fieldList Ty_FieldList(Ty_field head, Ty_fieldList tail);
-Ty_tyList Ty_TyList(Ty_ty head, Ty_tyList tail);
+Ty_sField Ty_SField(Ty_ty ty, S_symbol name, int offset);
+Ty_sFieldList Ty_SFieldList(Ty_sField head, Ty_SFieldList tail);
+
 #endif

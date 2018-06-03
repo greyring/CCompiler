@@ -81,30 +81,10 @@ struct A_exp_
     }kind;
     union{
         S_symbol id;
-        /* constant必须包装成ty，否则无法做类型检查
-        int intexp;//constant常量
+        int intexp;//todo
         double floatexp;
         char charexp;
         char* strexp;
-        */
-        struct{
-            S_symbol id;//id是常量名
-            int intnum;
-        }intconst;
-        struct{
-            S_symbol id;
-            double doublenum;
-        }floatconst;
-        struct{
-            S_symbol id;
-            char charnum;
-        }charconst;
-        struct{
-            S_symbol id;
-            char* strnum;
-        }strconst;
-
-
         struct{
             A_exp expr;
             A_exp subscript;
@@ -153,7 +133,6 @@ struct A_exp_
     }u;
 };
 
-// specifier有点复杂，暂时忽略
 struct A_spec_
 {
     A_pos pos;
@@ -273,7 +252,7 @@ struct A_dec_
             A_dec dec;
             A_exp assign_exp;
         }array;
-        A_dec array_proto;
+        A_dec array_proto;//todo
         struct{
             A_dec dec;
             A_param param_list;
@@ -532,61 +511,6 @@ A_stat _A_returnstat_stat(A_pos, A_exp);
 A_def _A_simple_def(A_pos, A_declaration);
 A_def _A_seq_def(A_pos, A_def, A_def);
 A_def _A_func_def(A_pos, A_spec, A_dec, A_declaration, A_stat);
-
-#define A_0(type, name) \
-A_##type _A_##name##_##type (A_pos pos)\
-{\
-    A_##type p = checked_malloc(sizeof(*p));\
-    p->kind = A_##name##_##type;\
-    p->pos = pos;\
-    return p;\
-}
-
-#define A_1(type, name, atype) \
-A_##type _A_##name##_##type (A_pos pos, atype a)\
-{\
-    A_##type p = checked_malloc(sizeof(*p));\
-    p->kind = A_##name##_##type;\
-    p->pos = pos;\
-    p->u.name = a;\
-    return p;\
-}
-
-#define A_2(type, name, atype, a, btype, b) \
-A_##type _A_##name##_##type (A_pos pos, atype a, btype b)\
-{\
-    A_##type p = checked_malloc(sizeof(*p));\
-    p->kind = A_##name##_##type;\
-    p->pos = pos;\
-    p->u.name.a = a;\
-    p->u.name.b = b;\
-    return p;\
-}
-
-#define A_3(type, name, atype, a, btype, b, ctype, c) \
-A_##type _A_##name##_##type (A_pos pos, atype a, btype b, ctype c)\
-{\
-    A_##type p = checked_malloc(sizeof(*p));\
-    p->kind = A_##name##_##type;\
-    p->pos = pos;\
-    p->u.name.a = a;\
-    p->u.name.b = b;\
-    p->u.name.c = c;\
-    return p;\
-}
-
-#define A_4(type, name, atype, a, btype, b, ctype, c, dtype, d) \
-A_##type _A_##name##_##type (A_pos pos, atype a, btype b, ctype c, dtype d)\
-{\
-    A_##type p = checked_malloc(sizeof(*p));\
-    p->kind = A_##name##_##type;\
-    p->pos = pos;\
-    p->u.name.a = a;\
-    p->u.name.b = b;\
-    p->u.name.c = c;\
-    p->u.name.d = d;\
-    return p;\
-}
 
 #endif
 

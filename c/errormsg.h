@@ -1,5 +1,5 @@
-#ifndef TIGER_ERRORMSG_H_
-#define TIGER_ERRORMSG_H_
+#ifndef _ERRORMSG_H_
+#define _ERRORMSG_H_
 
 extern bool EM_anyErrors;
 
