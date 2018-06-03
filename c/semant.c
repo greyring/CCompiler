@@ -308,9 +308,54 @@ static void _transSDeclar(Tr_level level, E_linkage linkenv, E_namespace nameenv
             Ty_dec temp = dec_;
             while(temp)
             {
-                //todo
                 //link type, update size and align
-                Ty_dec declar = Ty_specdec(spec,dec);
+                Ty_dec declar = Ty_specdec(spec, temp);
+                if (!declar->type->complete)//todo incomplete type
+                {
+                    EM_error(0,"incomplete type should not be a member");//todo pos
+                    break;
+                }
+                //check multi declar and bind
+                if (declar->sym)//is NULL only in bit type
+                {
+                    if (S_check(nameenv->menv, declar->sym))
+                    {
+                        EM_error(0,"has been declared before");//todo pos
+                        break;
+                    }
+                    S_enter(nameenv->menv, declar->sym, declar->type);
+                }
+                //add into sty
+                if (sty->kind == Ty_structTy)
+                {
+                    int temp_size = Tr_getIntConst(sty->size.exp);
+                    //complete
+                    sty->complete &= declar->type->complete;
+                    //size
+                    while(temp_size % declar->type->align)
+                        temp_size += 1;
+                    sty->u.structTy = Ty_SFieldList(sty->u.structTy, Ty_SField(declar->type, declar->sym, temp_size));
+                    temp_size += Tr_getIntConst(declar->type->size.exp);
+                    sty->size.exp = Tr_IntConst(temp_size);
+                    //align
+                    if (sty->u.structTy.head == NULL)
+                        sty->align = declar->type->align;
+                    
+                }
+                else//union
+                {
+                    int temp_size = Tr_getIntConst(sty->size.exp);
+                    //complete
+                    sty->complete &= declar->type->complete;
+                    //size
+                    if (Tr_getIntConst(declar->type->size.exp) > temp_size)
+                        sty->size.exp = declar->type->size.exp;
+                    //align
+                    if (declar->type->align > sty->align)
+                        sty->align = declar->type->align;
+                    //structTy
+                    sty->u.structTy = Ty_SFieldList(sty->u.structTy, Ty_SField(declar->type, declar->sym, 0));
+                }
                 temp = temp->next;
             }
             break;
@@ -333,31 +378,45 @@ static Ty_ty transSUType(Tr_level level, E_linkage linkenv, E_namespace nameenv,
     if (dec_list != NULL)//declaration
     {
         resty = checked_malloc(sizeof(*resty));
-        resty->kind = u.struct_union.struct_union == A_STRUCT ? Ty_structTy : Ty_unionTy;
+        resty->kind = type->u.struct_union.struct_union == A_STRUCT ? Ty_structTy : Ty_unionTy;
         
         //add forward declar
-        if (type->u.struct_union.id
-            && (S_look(nameenv->tenv, u->struct_union.id) == NULL))
+        if (type->u.struct_union.id)
         {
-            //tenv id -> [forward] (NULL)
-            Ty_ty ty = Ty_ForwardTy(NULL);
-            S_enter(nameenv->tenv, u->struct_union.id, ty);
+            Ty_ty ty = S_look(nameenv->tenv, type->u.struct_union.id);
+            if (ty && (ty->kind != Ty_forwardTy || ty->complete))
+                EM_error(type->pos, "has been declared before");
+            if (ty == NULL)
+            {
+                //tenv id -> [forward] (NULL)
+                Ty_ty ty = Ty_ForwardTy(NULL);
+                S_enter(nameenv->tenv, type->u.struct_union.id, ty);
+            }
         }
         
-        nameenv = E_BeginScope(nameenv);
-        _transSDeclar(level, linkenv, nameenv, sty, dec_list);
-        //todo bind or link forward type
+        nameenv = E_BeginScope(S_BLOCK, nameenv);
+        _transSDeclar(level, linkenv, nameenv, resty, dec_list);
         nameenv = E_EndScope(nameenv);
+
+        //link forward type
+        if (type->u.struct_union.id)//has forward type
+        {
+            Ty_ty ty = S_look(nameenv->tenv, type->u.struct_union.id);
+            ty->u.forwardTy = resty;
+            ty->align = resty->align;
+            ty->size = resty->size;
+            ty->complete = resty->complete;
+        }
     }
     else//reference
     {
-        resty = S_look(nameenv->tenv, u->struct_union.id);
+        resty = S_look(nameenv->tenv, type->u.struct_union.id);
         if (resty == NULL)
         {
             //tenv id -> [forward] (NULL)
             Ty_ty ty = Ty_ForwardTy(NULL);
-            S_enter(nameenv->tenv, u->struct_union.id, ty);
-            resty = S_look(nameenv->tenv, u->struct_union.id);
+            S_enter(nameenv->tenv, type->u.struct_union.id, ty);
+            resty = S_look(nameenv->tenv, type->u.struct_union.id);
         }
     }
 

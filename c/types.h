@@ -11,7 +11,9 @@ typedef struct Ty_dec_ *Ty_dec;//a list of dec
 typedef struct Ty_decList_ Ty_decList;//notice this is a struct
 typedef struct Ty_ty_ *Ty_ty;
 typedef struct Ty_field_ *Ty_field;//a list of field
-typedef struct Ty_sField_ *Ty_sField;//a list of sfield
+typedef struct Ty_fieldList_ Ty_fieldList;//a struct
+typedef struct Ty_sField_ *Ty_sField;//a list of struct field
+typedef struct Ty_sFieldList_ Ty_sFieldList;//a struct
 
 struct Ty_expty
 {
@@ -28,7 +30,7 @@ struct Ty_spec_
 
 struct Ty_dec_
 {
-    A_init    init;
+    A_init   init;
     Ty_ty    type;
     S_symbol sym;
     Ty_dec   next;
@@ -38,6 +40,35 @@ struct Ty_decList_
 {
     Ty_dec head;
     Ty_dec tail;
+};
+
+//for param
+struct Ty_field_
+{
+    Ty_ty ty;
+    S_symbol name;
+    Ty_field next;
+};
+
+struct Ty_fieldList_
+{
+    Ty_field head;
+    Ty_field tail;
+};
+
+//for struct and union
+struct Ty_sField_
+{
+    Ty_ty ty;
+    S_symbol name;
+    int offset;
+    Ty_sField next;
+};
+
+struct Ty_sFieldList_
+{
+    Ty_sField head;
+    Ty_sField tail;
 };
 
 struct Ty_ty_
@@ -60,7 +91,7 @@ struct Ty_ty_
     union{
         Ty_ty nameTy, forwardTy;
         Ty_ty basicTy;//because basic may have specs so...
-        Ty_sField structTy;
+        Ty_sFieldList structTy;
         struct
         {
             Ty_ty ty;
@@ -81,23 +112,6 @@ struct Ty_ty_
             Ty_field params;
         }funcTy;
     }u;
-};
-
-//for param
-struct Ty_field_
-{
-    Ty_ty ty;
-    S_symbol name;
-    Ty_field next;
-};
-
-//for struct and union
-struct Ty_sField_
-{
-    Ty_ty ty;
-    S_symbol name;
-    int offset;
-    Ty_sField next;
 };
 
 #define DECLAR(type, num) \
@@ -134,11 +148,13 @@ Ty_ty Ty_Double();
 Ty_ty Ty_LDouble();
 
 //test spec
-unsigned long Ty_isLong(Ty_spec spec);
+unsigned long Ty_isLONG(Ty_spec spec);
 unsigned long Ty_isSimpleType(Ty_spec spec);
 
 //test type
 int Ty_isIntTy(Ty_ty ty);
+
+Ty_dec Ty_specdec(Ty_spec spec, Ty_dec dec);
 
 
 Ty_ty Ty_ForwardTy(Ty_ty ty);//init incomplete
@@ -150,8 +166,8 @@ Ty_ty Ty_FuncTy(Ty_ty returnTy, Ty_field params);
 
 Ty_decList Ty_DecList(Ty_decList head, Ty_dec tail);//return a struct
 Ty_field Ty_Field(Ty_ty ty, S_symbol name);
-Ty_field Ty_FieldList(Ty_field head, Ty_field tail);
+Ty_fieldList Ty_FieldList(Ty_fieldList head, Ty_field tail);
 Ty_sField Ty_SField(Ty_ty ty, S_symbol name, int offset);
-Ty_sField Ty_SFieldList(Ty_sField head, Ty_sField tail);
+Ty_sFieldList Ty_SFieldList(Ty_sFieldList head, Ty_sField tail);//return a struct
 
 #endif

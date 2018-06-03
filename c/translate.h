@@ -44,5 +44,6 @@ Tr_exp Tr_charExp(char c)
 */
 
 Tr_exp Tr_IntConst(int i);
+int Tr_getIntConst(Tr_exp intConst);
 
 #endif

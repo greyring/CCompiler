@@ -201,10 +201,10 @@ static Ty_ty Ty_linkTy(Ty_ty outer, Ty_ty inner)
     return outer;
 }
 
-//calc align size incomplete
+//calc align size complete
 //not handle forward declar
 //only complete type has size
-static void Ty_calcASI(Ty_ty type)
+static void Ty_calcASC(Ty_ty type)
 {
     //has been calc before
     if (type->complete)
@@ -214,7 +214,7 @@ static void Ty_calcASI(Ty_ty type)
         case Ty_forwardTy:
             return;
         case Ty_nameTy:
-            Ty_calcASI(type->u.nameTy);
+            Ty_calcASC(type->u.nameTy);
             type->complete = type->u.nameTy->complete;
             type->align = type->u.nameTy->align;
             if (type->complete)
@@ -295,7 +295,7 @@ static void Ty_calcASI(Ty_ty type)
         case Ty_bitTy://todo not support
             break;
         case Ty_pointerTy:
-            Ty_calcASI(type->u.pointerTy.ty);
+            Ty_calcASC(type->u.pointerTy.ty);
             type->complete = 1;
             type->align = SIZE_POINTER;
             type->size = Ty_Expty(Tr_IntConst(SIZE_POINTER), Ty_Int());
@@ -333,7 +333,7 @@ Ty_dec Ty_specdec(Ty_spec spec, Ty_dec dec)
     else
         assert(0);
 
-    Ty_calcASI(dec->type);
+    Ty_calcASC(dec->type);
     return dec;
 }
 
@@ -416,9 +416,12 @@ Ty_field Ty_Field(Ty_ty ty, S_symbol name)
     return p;
 }
 
-Ty_field Ty_FieldList(Ty_field head, Ty_field tail)
+Ty_fieldList Ty_FieldList(Ty_fieldList head, Ty_field tail)
 {
-    head->next = tail;
+    if (!head.head)
+        head.head = head.tail = tail;
+    else
+        head.tail = head.tail->next = tail;
     return head;
 }
 
@@ -431,8 +434,11 @@ Ty_sField Ty_SField(Ty_ty ty, S_symbol name, int offset)
     return p;
 }
 
-Ty_sField Ty_SFieldList(Ty_sField head, Ty_sField tail)
+Ty_sFieldList Ty_SFieldList(Ty_sFieldList head, Ty_sField tail)
 {
-    head->next = tail;
+    if (!head.head)
+        head.head = head.tail = tail;
+    else
+        head.tail = head.tail->next = tail;
     return head;
 }

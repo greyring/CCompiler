@@ -56,7 +56,20 @@ void S_enter(S_table t, S_symbol sym, void *value)
     TAB_enter(t->table, sym, value);
 }
 
+//look in all scopes
 void *S_look(S_table t, S_symbol sym)
+{
+    void *temp;
+    temp = TAB_look(t->table, sym);
+    if (t)
+        return temp;
+    if (t->parent)
+        return S_look(t->parent, sym);
+    return NULL;
+}
+
+//check only in this scope
+void *S_check(S_table t, S_symbol sym)
 {
     return TAB_look(t->table, sym);
 }

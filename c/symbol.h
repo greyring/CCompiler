@@ -37,6 +37,7 @@ S_symbol _S_symbol(string name);
 S_table S_empty(S_scope);
 void S_enter(S_table, S_symbol, void *value);
 void *S_look(S_table, S_symbol);
+void *S_check(S_table, S_symbol);
 S_table S_beginScope(S_scope, S_table);
 S_table S_endScope(S_table);
 string S_name(S_symbol sym);
