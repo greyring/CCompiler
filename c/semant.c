@@ -7,11 +7,15 @@
 #include <assert.h>
 
 struct expty Expty(Tr_exp exp, Ty_ty ty);
+static struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_exp);
 static Ty_ty transEType(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_type type);
 static Ty_ty transSUType(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_type type);
 static Ty_spec transSpec(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_spec spec);
 static Ty_decList transDec(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_dec dec);
-static struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_exp);
+static Tr_exp transInit(Tr_level level, E_linkage linkenv, E_namespace nameenv, E_enventry entry, A_init init);
+static void transDeclar(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_declaration declar);
+static void transStat(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_stat);
+static void transDef(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_def def);
 
 struct expty Expty(Tr_exp exp, Ty_ty ty)
 {
@@ -278,6 +282,8 @@ static Ty_fieldList transParam(Tr_level level, E_linkage linkenv, E_namespace na
     return fieldList;
 }
 
+
+
 //dec: not a seq dec 
 //return: single dec
 static Ty_dec _transDec(Tr_level level, E_linkage linkenv, E_namespace nameenv, Ty_dec ty_dec, A_dec dec)
@@ -309,16 +315,19 @@ static Ty_dec _transDec(Tr_level level, E_linkage linkenv, E_namespace nameenv, 
         case A_func_dec:
         {
             //if ()//todo
-            Ty_fieldList params = transParam(level, linkenv, nameenv, dec->u.func.param_list);//todo
+            E_BeginScope(S_FUNCPRO, nameenv);
+            Ty_fieldList params = transParam(level, linkenv, nameenv, dec->u.func.param_list);
+            E_EndScope(nameenv);
             ty_dec->type = Ty_FuncTy(ty_dec->type, params);
             _transDec(level, linkenv, nameenv, ty_dec, dec->u.func.dec);
             break;
         }
-        default:
+        default://todo array_proto func_id
             assert(0);
     }
 }
 
+//trans Declator
 static Ty_decList transDec(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_dec dec)
 {
     Ty_dec tail = checked_malloc(sizeof(*tail));
@@ -339,8 +348,7 @@ static Ty_decList transDec(Tr_level level, E_linkage linkenv, E_namespace nameen
     return decList;
 }
 
-
-
+//translate declar in enum type
 static int _transEDeclar(Tr_level level, E_linkage linkenv, E_namespace nameenv, int now, A_init init)
 {
     switch (init->kind)
@@ -384,6 +392,7 @@ static int _transEDeclar(Tr_level level, E_linkage linkenv, E_namespace nameenv,
     return now;
 }
 
+//translate enum type
 static Ty_ty transEType(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_type type)
 {
     Ty_ty resty;
@@ -411,10 +420,11 @@ static Ty_ty transEType(Tr_level level, E_linkage linkenv, E_namespace nameenv, 
 
             if (!(resty->complete))
             {
-                resty->u.forwardTy = Ty_UInt();
+                //todo check whith type to bind
+                resty->u.forwardTy = Ty_VInt(0);
                 resty->complete = 1;
                 resty->size.exp = Tr_IntConst(SIZE_INT);
-                resty->size.ty  = Ty_UInt();
+                resty->size.ty  = Ty_Int();//todo for all type size is UInt()
                 resty->align = SIZE_INT;
             }
         }
@@ -558,6 +568,275 @@ static Ty_ty transSUType(Tr_level level, E_linkage linkenv, E_namespace nameenv,
     return resty;
 }
 
+static Tr_exp transInit(Tr_level level, E_linkage linkenv, E_namespace nameenv, E_enventry entry, A_init init)
+{
+    switch(init->kind)
+    {
+        case A_simple_init:
+        {
+            struct expty expty = transExp(level, linkenv, nameenv, init->u.simple);
+            if (!Ty_canAssignTy(entry->u.var.ty, expty.ty))
+            {
+                EM_error(init->pos, "invalid init type");
+                break;
+            }
+            return Tr_assignExp(Tr_simpleVar(level, entry->u.var.access), expty.exp);
+        }
+        default://todo
+            assert(0);
+    }
+}
+
+//may be called in file scope or in block scope
+//alloc space immediately
+static void transDeclar(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_declaration declar)
+{
+    switch(declar->kind)
+    {
+        case A_seq_declaration:
+            transDeclar(level, linkenv, nameenv, declar->u.seq.declaration);
+            transDeclar(level, linkenv, nameenv, declar->u.seq.next);
+            break;
+        case A_simple_declaration:
+        {
+            Ty_spec spec = transSpec(level, linkenv, nameenv, declar->u.simple.spec);
+            Ty_decList  decList = transDec(level, linkenv, nameenv, declar->u.simple.dec);
+            Ty_dec temp = decList.head;
+            Ty_dec dec = NULL;
+            while(temp)
+            {
+                dec = Ty_specdec(spec, temp);
+                if (dec->sym)//if is NULL, do nothing
+                    goto next;
+
+                if (!dec->type->complete)
+                {
+                    EM_error(declar->pos, "incomplete type");
+                    goto next;
+                }
+
+                //todo check
+                if (Ty_isTYPEDEF(spec))//typedef
+                {
+                    if (S_check(nameenv->venv, dec->sym))
+                    {
+                        EM_error(declar->pos, "has been declared before");
+                        goto next;
+                    }
+                    S_enter(nameenv->venv, dec->sym, dec->type);
+                }
+                else if (Ty_isEXTERN(spec))//extern
+                {
+                    Ty_ty ty = NULL;
+                    E_enventry entry = NULL;
+
+                    if (!dec->type->complete)
+                    {
+                        EM_error(declar->pos, "incomplete type");
+                        goto next;
+                    }
+
+                    ty = Ty_actualTy(dec->type);
+                    entry = S_look(nameenv->venv, dec->sym);
+                    
+                    //todo better check
+                    //has been declared before
+                    if (entry)
+                    {
+                        if (dec->type->kind == Ty_funcTy)//func
+                        {
+                            if (entry->kind != E_funcEntry || Ty_areSameTy(entry->u.func.functy, ty))
+                            {
+                                EM_error(declar->pos, "declared as different type");
+                                goto next;
+                            }
+                            if (!S_check(nameenv->venv, dec->sym))
+                                S_enter(nameenv->venv, dec->sym, entry);
+                        }
+                        else
+                        {
+                            if (entry->kind != E_varEntry || Ty_areSameTy(entry->u.var.ty, ty))
+                            {
+                                EM_error(declar->pos, "declared as different type");
+                                goto next;
+                            }
+                            if (!S_check(nameenv->venv, dec->sym))
+                                S_enter(nameenv->venv, dec->sym, 
+                                        E_VarEntry(entry->u.var.access, entry->u.var.ty));
+                        }
+                        
+                    }
+                    else//has not been declared before
+                    {
+                        if (dec->type->kind == Ty_funcTy)
+                        {
+                            entry = E_FuncEntry(dec->type, NULL);//has to be complete further
+                            S_enter(linkenv->exlink, dec->sym, entry);
+                            S_enter(nameenv->venv, dec->sym, entry);
+                        }
+                        else
+                        {
+                            if (dec->init)//todo init
+                            {
+                                EM_error(declar->pos, "extern should not be inited");
+                                goto next;
+                            }
+                            Tr_access access = Tr_ExternAccess(dec->sym);
+                            entry = E_VarEntry(access, dec->type);
+                            S_enter(linkenv->exlink, dec->sym, entry);
+                            S_enter(nameenv->venv, dec->sym, entry);
+                        }
+                    }
+                }
+                else if (Ty_isSTATIC(spec))//static
+                {
+                    //todo
+                }
+                else
+                {
+                    Ty_ty ty = NULL;
+                    E_enventry entry = NULL;
+
+                    if (!dec->type->complete)
+                    {
+                        EM_error(declar->pos, "incomplete type");
+                        goto next;
+                    }
+
+                    ty = Ty_actualTy(dec->type);
+                    
+                    if (ty->kind == Ty_funcTy)//function external linkage
+                    {
+                        //todo better check
+                        entry = S_check(nameenv->venv, dec->sym);
+                        if (entry)
+                        {
+                            EM_error(declar->pos, "has been declared before");
+                            goto next;
+                        }
+                        entry = E_FuncEntry(dec->type, NULL);//has to be complete further
+                        S_enter(linkenv->exlink, dec->sym, entry);
+                        S_enter(nameenv->venv, dec->sym, entry);
+                    }
+                    else//variable
+                    {
+                        //todo better check
+                        entry = S_check(nameenv->venv, dec->sym);
+                        if (entry)
+                        {
+                            EM_error(declar->pos, "has been declared before");
+                            goto next;
+                        }
+                        //alloc space
+                        if (nameenv->venv->scope == S_FILE)
+                        {
+                            if (!Ty_isIntCTy(dec->type->size.ty))
+                            {
+                                EM_error(declar->pos, "size can not be determined");
+                                goto next;  
+                            }
+                            Tr_access access = Tr_GlobalAccess(dec->type);
+                            entry = E_VarEntry(access, dec->type);
+                            S_enter(linkenv->exlink, dec->sym, entry);
+                            S_enter(nameenv->venv, dec->sym, entry);
+                        }
+                        else
+                        {
+                            entry = E_VarEntry(NULL, dec->type);
+                            S_enter(linkenv->nolink, dec->sym, entry);
+                            S_enter(nameenv->venv, dec->sym, entry);
+                            Tr_access access = Tr_StackAccess(level, dec->type);
+                            entry = S_check(linkenv->nolink, dec->sym);
+                            entry->u.var.access = access;
+                            entry = S_check(nameenv->venv, dec->sym);
+                            entry->u.var.access = access;                            
+                        }
+                        //init
+                        if (dec->init)
+                        {
+                            Tr_exp tr_exp = transInit(level, linkenv, nameenv, entry, dec->init);
+                            Tr_addInit(level, tr_exp);
+                        }
+                    }
+                        
+                }
+next:
+                temp = temp->next;
+            }
+            break;
+        }
+        default:
+            assert(0);
+    }
+}
+
+static void transStat(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_stat)
+{
+
+}
+
+static void transDef(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_def def)
+{
+    switch(def->kind)
+    {
+        case A_seq_def:
+            transDef(level, linkenv, nameenv, def->u.seq.def);
+            transDef(level, linkenv, nameenv, def->u.seq.next);
+            break;
+        case A_func_def:
+        {
+            E_enventry entry = NULL;
+            Ty_spec spec = transSpec(level, linkenv, nameenv, def->u.func.spec);
+            Ty_decList decList = transDec(level, linkenv, nameenv, def->u.func.func);
+            Ty_dec dec = decList.head;
+
+            dec = Ty_specdec(spec, dec);
+            if (!dec->sym)
+                break;
+            entry = S_check(nameenv->venv, dec->sym);
+            if (entry)
+            {
+                if (entry->kind != E_funcEntry || !Ty_areSameTy(entry->u.func.functy, dec->type))
+                {
+                    EM_error(def->pos, "has been declared as different type");
+                    break;
+                }
+                if (entry->u.func.level)
+                {
+                    EM_error(def->pos, "has been defined before");
+                    break;
+                }
+                level = Tr_newLevel(level, Temp_newlabel(), dec->type);
+                entry->u.func.level = level;
+            }
+            else
+            {
+                level = Tr_newLevel(level, Temp_newlabel(), dec->type);
+                entry = E_FuncEntry(dec->type, level);
+            }
+            Ty_field temp = NULL;
+            Tr_access access = NULL;
+            E_BeginScope(S_BLOCK, nameenv);
+            S_beginScope(S_NOLINK, linkenv->nolink);
+            for(temp = dec->type->u.funcTy.params.head; temp; temp = temp->next)
+            {
+                access = Tr_StackAccess(level, temp->ty);
+                entry = E_VarEntry(access, temp->ty);
+                S_enter(nameenv->venv, dec->sym, entry);
+                S_enter(linkenv->nolink, dec->sym, entry);
+            }
+            transStat(level, linkenv, nameenv, def->u.func.stat);
+            S_endScope(linkenv->nolink);
+            E_EndScope(nameenv);
+            break;
+        }
+        case A_simple_dec:
+            transDeclar(level, linkenv, nameenv, def->u.simple);
+            break;
+        default:
+            assert(0);
+    }
+}
 
 /*
 struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_exp a){

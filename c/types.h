@@ -130,22 +130,24 @@ DECLAR(CHAR, 10); DECLAR(SHORT, 11); DECLAR(INT, 12);
 DECLAR(FLOAT, 13); DECLAR(DOUBLE, 14);
 DECLAR(SIGNED, 15); DECLAR(UNSIGNED, 16);
 DECLAR(STRUCT, 17); DECLAR(UNION, 18); DECLAR(ENUM, 19);
+//can not be assigned
+DECLAR(RVAL, 20);
 #undef DECLAR
 
-Ty_ty Ty_Void();
-Ty_ty Ty_Char();
-Ty_ty Ty_UChar();
-Ty_ty Ty_Short();
-Ty_ty Ty_UShort();
-Ty_ty Ty_Int();
-Ty_ty Ty_UInt();
-Ty_ty Ty_Long();
-Ty_ty Ty_ULong();
-Ty_ty Ty_LLong();
-Ty_ty Ty_ULLong();
-Ty_ty Ty_Float();
-Ty_ty Ty_Double();
-Ty_ty Ty_LDouble();
+Ty_ty Ty_Void();    Ty_ty Ty_VVoid(unsigned long);
+Ty_ty Ty_Char();    Ty_ty Ty_VChar(unsigned long);
+Ty_ty Ty_UChar();   Ty_ty Ty_VUChar(unsigned long);
+Ty_ty Ty_Short();   Ty_ty Ty_VShort(unsigned long);
+Ty_ty Ty_UShort();  Ty_ty Ty_VUShort(unsigned long);
+Ty_ty Ty_Int();     Ty_ty Ty_VInt(unsigned long);
+Ty_ty Ty_UInt();    Ty_ty Ty_VUInt(unsigned long);
+Ty_ty Ty_Long();    Ty_ty Ty_VLong(unsigned long);
+Ty_ty Ty_ULong();   Ty_ty Ty_VULong(unsigned long);
+Ty_ty Ty_LLong();   Ty_ty Ty_VLLong(unsigned long);
+Ty_ty Ty_ULLong();  Ty_ty Ty_VULLong(unsigned long);
+Ty_ty Ty_Float();   Ty_ty Ty_VFloat(unsigned long);
+Ty_ty Ty_Double();  Ty_ty Ty_VDouble(unsigned long);
+Ty_ty Ty_LDouble(); Ty_ty Ty_VLDouble(unsigned long);
 
 //test spec
 unsigned long Ty_isLONG(Ty_spec spec);
@@ -171,6 +173,9 @@ Ty_fieldList Ty_FieldList(Ty_fieldList head, Ty_field tail);
 Ty_sField Ty_SField(Ty_ty ty, S_symbol name, int offset);
 Ty_sFieldList Ty_SFieldList(Ty_sFieldList head, Ty_sField tail);//return a struct
 
+Ty_ty Ty_actualTy(Ty_ty ty);
 
+int Ty_areSameTy(Ty_ty ty1, Ty_ty ty2);//todo
+int Ty_canAssignTy(Ty_ty dst, Ty_ty src);//todo
 
 #endif

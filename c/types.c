@@ -29,6 +29,7 @@ SPEC(CHAR); SPEC(SHORT); SPEC(INT);
 SPEC(FLOAT); SPEC(DOUBLE);
 SPEC(SIGNED); SPEC(UNSIGNED);
 SPEC(STRUCT); SPEC(UNION); SPEC(ENUM);
+SPEC(RVAL);
 #undef SPEC
 
 #define BASIC(NAME) \
@@ -37,7 +38,14 @@ struct Ty_ty_ Ty_##NAME##_ =\
  .complete = 0, \
  .u.basicTy = NULL, \
  };\
-Ty_ty Ty_##NAME (void){return &Ty_##NAME##_;}
+Ty_ty Ty_##NAME (void){return &Ty_##NAME##_;}\
+Ty_ty Ty_V##NAME (unsigned long spec)\
+{\
+    Ty_ty p = checked_malloc(sizeof(*p));\
+    p->kind = Ty_basicTy;\
+    p->complete = 0;\
+    p->u.basicTy = Ty_##NAME();\
+}
 
 BASIC(Void)
 BASIC(Char); BASIC(UChar);
@@ -304,7 +312,7 @@ static void Ty_calcASC(Ty_ty type)
             if (type->u.arrayTy.constExp)
             {
                 type->complete = 1;
-                type->size = type->u.arrayTy.ty->size;
+                type->size = type->u.arrayTy.ty->size;//todo
             }
             else
                 type->complete = 0;
@@ -441,4 +449,13 @@ Ty_sFieldList Ty_SFieldList(Ty_sFieldList head, Ty_sField tail)
     else
         head.tail = head.tail->next = tail;
     return head;
+}
+
+Ty_ty Ty_actualTy(Ty_ty ty)
+{
+    if (ty->kind == Ty_forwardTy)
+        return Ty_actualTy(ty->u.forwardTy);
+    else if (ty->kind == Ty_nameTy)
+        return Ty_actualTy(ty->u.nameTy);
+    return ty;
 }

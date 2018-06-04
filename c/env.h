@@ -13,7 +13,7 @@ struct E_enventry_
 {
     enum{
         E_varEntry,
-        E_funEntry
+        E_funcEntry
     }kind;
     union
     {
@@ -24,7 +24,7 @@ struct E_enventry_
         struct{
             Tr_level level;
 			Ty_ty functy;
-        }fun;
+        }func;
     }u;
 };
 
@@ -45,7 +45,7 @@ struct E_linkage_
 };
 
 E_enventry E_VarEntry(Tr_access access, Ty_ty ty);
-E_enventry E_FunEntry(Ty_ty functy, Tr_level level);
+E_enventry E_FuncEntry(Ty_ty functy, Tr_level level);
 
 //init namespaces
 E_namespace E_Namespace(void);
