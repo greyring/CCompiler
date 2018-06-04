@@ -1,6 +1,7 @@
 #include "util.h"
 #include "symbol.h"
 #include "env.h"
+#include "translate.h"
 
 E_namespace E_Namespace(void)
 {
@@ -39,14 +40,15 @@ E_namespace E_EndScope(E_namespace space)
     return space;
 }
 
-/*
-E_enventry E_VarEntry(Ty_ty ty){
+E_enventry E_VarEntry(Tr_access access, Ty_ty ty){
     E_enventry e = checked_malloc(sizeof(*e));
     e->kind = E_varEntry;
+    e->u.var.access = access;
     e->u.var.ty = ty;
     return e;
 }
 
+/*
 E_enventry E_FunEntry(Ty_tyList formals, Ty_ty result){
     E_enventry e = checked_malloc(sizeof(*e));
     e->kind = E_funEntry;

@@ -383,7 +383,7 @@ Ty_ty Ty_ArrayTy(Ty_ty ty, A_exp constExp)//todo
     return p;
 }
 
-Ty_ty Ty_FuncTy(Ty_ty returnTy, Ty_field params)
+Ty_ty Ty_FuncTy(Ty_ty returnTy, Ty_fieldList params)
 {
     Ty_ty p = checked_malloc(sizeof(*p));
     p->kind = Ty_funcTy;

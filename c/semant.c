@@ -7,9 +7,11 @@
 #include <assert.h>
 
 struct expty Expty(Tr_exp exp, Ty_ty ty);
+static Ty_ty transEType(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_type type);
 static Ty_ty transSUType(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_type type);
 static Ty_spec transSpec(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_spec spec);
 static Ty_decList transDec(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_dec dec);
+static struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_exp);
 
 struct expty Expty(Tr_exp exp, Ty_ty ty)
 {
@@ -127,7 +129,7 @@ static void _transType(Tr_level level, E_linkage linkenv, E_namespace nameenv, T
             if (Ty_isSimpleType(ty_spec) || ty_spec->complex_type)
                 EM_error(type->pos, "more than one type assigned");
             else 
-                ty_spec->complex_type = transEType(type);
+                ty_spec->complex_type = transEType(level, linkenv, nameenv, type);
             break;
         case A_typeid_type:
             if (Ty_isSimpleType(ty_spec) || ty_spec->complex_type)
@@ -232,6 +234,50 @@ static void _transPointer(Tr_level level, E_linkage linkenv, E_namespace nameenv
     }
 }
 
+static Ty_field _transParam(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_param param)
+{
+    Ty_field field = NULL;
+    switch(param->kind)
+    {
+        case A_dec_param:
+        {
+            Ty_spec spec = transSpec(level, linkenv, nameenv, param->u.dec.spec);
+            Ty_decList  decList = transDec(level, linkenv, nameenv, param->u.dec.dec);
+            Ty_dec dec = decList.head;
+            assert(dec->next == NULL);//must be single
+            dec = Ty_specdec(spec, dec);
+            field = Ty_Field(dec->type, dec->sym);
+            break;
+        }
+        case A_uncertain_param:
+            field = Ty_Field(NULL, NULL);//is uncertain param
+            break;
+        default:
+            assert(0);
+    }
+    return field;
+}
+
+static Ty_fieldList transParam(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_param param)
+{
+    Ty_fieldList fieldList;
+    Ty_field tail = checked_malloc(sizeof(*tail));
+    fieldList.head = fieldList.tail = NULL;
+    switch(param->kind)
+    {
+        case A_seq_param:
+            fieldList = transParam(level, linkenv, nameenv, param->u.seq.param);
+            tail = _transParam(level, linkenv, nameenv, param->u.seq.next);
+            fieldList = Ty_FieldList(fieldList, tail);
+            break;
+        default:
+            tail = _transParam(level, linkenv, nameenv, param);
+            fieldList = Ty_FieldList(fieldList, tail);
+            break;
+    }
+    return fieldList;
+}
+
 //dec: not a seq dec 
 //return: single dec
 static Ty_dec _transDec(Tr_level level, E_linkage linkenv, E_namespace nameenv, Ty_dec ty_dec, A_dec dec)
@@ -262,7 +308,8 @@ static Ty_dec _transDec(Tr_level level, E_linkage linkenv, E_namespace nameenv, 
             break;
         case A_func_dec:
         {
-            Ty_field params = transParam(level, linkenv, nameenv, dec->u.func.param_list);//todo
+            //if ()//todo
+            Ty_fieldList params = transParam(level, linkenv, nameenv, dec->u.func.param_list);//todo
             ty_dec->type = Ty_FuncTy(ty_dec->type, params);
             _transDec(level, linkenv, nameenv, ty_dec, dec->u.func.dec);
             break;
@@ -294,7 +341,95 @@ static Ty_decList transDec(Tr_level level, E_linkage linkenv, E_namespace nameen
 
 
 
+static int _transEDeclar(Tr_level level, E_linkage linkenv, E_namespace nameenv, int now, A_init init)
+{
+    switch (init->kind)
+    {
+        case A_seq_init:
+            now = _transEDeclar(level, linkenv, nameenv, now, init->u.seq.init);
+            now = _transEDeclar(level, linkenv, nameenv, now, init->u.seq.next);
+            break;
+        case A_enumtype_init:
+        {
+            //todo global scope
+            E_enventry e = S_check(nameenv->venv, init->u.enumtype.id);
+            if (e)
+                EM_error(init->pos, "has been declared before");
+            else
+            {
+                if (init->u.enumtype.const_exp)
+                {
+                    struct expty expty = transExp(level, linkenv, nameenv, init->u.enumtype.const_exp);
+                    if (!Ty_isIntCTy(expty.ty))
+                        EM_error(init->u.enumtype.const_exp->pos, "not a int constant");
+                    else
+                    {
+                        e = E_VarEntry(Tr_ConstAccess(expty.exp), Ty_Int());
+                        S_enter(nameenv->venv, init->u.enumtype.id, e);
+                        now = Tr_getIntConst(expty.exp) + 1;
+                    }
+                }
+                else
+                {
+                    e = E_VarEntry(Tr_ConstAccess(Tr_IntConst(now)), Ty_Int());
+                    S_enter(nameenv->venv, init->u.enumtype.id, e);
+                    now = now + 1;
+                }
+            }
+            break;
+        }
+        default:
+            assert(0);
+    }
+    return now;
+}
 
+static Ty_ty transEType(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_type type)
+{
+    Ty_ty resty;
+    if (type->u.enumtype.init_list)//def
+    {
+        if (type->u.enumtype.id)
+        {
+            //todo if (nameenv->tenv->scope != S_FILE)
+            resty = S_check(nameenv->tenv, type->u.enumtype.id);
+            if (resty)
+            {
+                if (resty->complete)
+                {
+                    EM_error(type->pos, "has been declared before");
+                    return resty;
+                }
+            }
+            else
+            {
+                resty = Ty_ForwardTy(NULL);
+                S_enter(nameenv->tenv, type->u.enumtype.id, resty);
+            }
+
+            _transEDeclar(level, linkenv, nameenv, 0, type->u.enumtype.init_list);
+
+            if (!(resty->complete))
+            {
+                resty->u.forwardTy = Ty_UInt();
+                resty->complete = 1;
+                resty->size.exp = Tr_IntConst(SIZE_INT);
+                resty->size.ty  = Ty_UInt();
+                resty->align = SIZE_INT;
+            }
+        }
+    }
+    else//declar
+    {
+        resty = S_check(nameenv->tenv, type->u.enumtype.id);
+        if (!resty)
+        {
+            resty = Ty_ForwardTy(NULL);
+            S_enter(nameenv->tenv, type->u.enumtype.id, resty);
+        }
+    }
+    return resty;
+}
 
 //add variable to struct or union, calc size
 static void _transSDeclar(Tr_level level, E_linkage linkenv, E_namespace nameenv, Ty_ty sty, A_declaration dec)

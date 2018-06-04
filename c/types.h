@@ -109,7 +109,7 @@ struct Ty_ty_
         }arrayTy;
         struct{
             Ty_ty returnTy;
-            Ty_field params;
+            Ty_fieldList params;
         }funcTy;
     }u;
 };
@@ -153,6 +153,7 @@ unsigned long Ty_isSimpleType(Ty_spec spec);
 
 //test type
 int Ty_isIntTy(Ty_ty ty);
+int Ty_isIntCTy(Ty_ty ty);//todo
 
 Ty_dec Ty_specdec(Ty_spec spec, Ty_dec dec);
 
@@ -162,12 +163,14 @@ Ty_ty Ty_NameTy(Ty_ty ty);
 Ty_ty Ty_BitTy(Ty_ty ty, A_exp constExp);
 Ty_ty Ty_PointerTy(Ty_ty ty, unsigned long qual);
 Ty_ty Ty_ArrayTy(Ty_ty ty, A_exp constExp);
-Ty_ty Ty_FuncTy(Ty_ty returnTy, Ty_field params);
+Ty_ty Ty_FuncTy(Ty_ty returnTy, Ty_fieldList params);
 
 Ty_decList Ty_DecList(Ty_decList head, Ty_dec tail);//return a struct
 Ty_field Ty_Field(Ty_ty ty, S_symbol name);
 Ty_fieldList Ty_FieldList(Ty_fieldList head, Ty_field tail);
 Ty_sField Ty_SField(Ty_ty ty, S_symbol name, int offset);
 Ty_sFieldList Ty_SFieldList(Ty_sFieldList head, Ty_sField tail);//return a struct
+
+
 
 #endif

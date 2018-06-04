@@ -6,6 +6,7 @@
 
 typedef void *Tr_exp;
 typedef void *Tr_level;
+typedef void *Tr_access;//mem reg const
 
 /*
 typedef struct Tr_level_ *Tr_level;
@@ -45,5 +46,6 @@ Tr_exp Tr_charExp(char c)
 
 Tr_exp Tr_IntConst(int i);
 int Tr_getIntConst(Tr_exp intConst);
+Tr_access Tr_ConstAccess(Tr_exp exp);
 
 #endif

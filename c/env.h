@@ -2,15 +2,15 @@
 #define _ENV_H_
 
 #include "types.h"
+#include "temp.h"
+#include "translate.h"
 
 typedef struct E_namespace_ *E_namespace;
 typedef struct E_linkage_ *E_linkage;
 typedef struct E_enventry_ *E_enventry;
 
-/*
 struct E_enventry_
 {
-    int incomplete;
     enum{
         E_varEntry,
         E_funEntry
@@ -22,12 +22,11 @@ struct E_enventry_
             Ty_ty ty;
         }var;
         struct{
-            Ty_tyList formals;
-            Ty_ty result;
+            Tr_level level;
+			Ty_ty functy;
         }fun;
     }u;
 };
-*/
 
 //namespaces
 struct E_namespace_
@@ -45,8 +44,8 @@ struct E_linkage_
     S_table nolink;//symbol->Tr_access
 };
 
-//E_enventry E_VarEntry(Ty_ty ty);
-//E_enventry E_FunEntry(Ty_tyList formals, Ty_ty result);
+E_enventry E_VarEntry(Tr_access access, Ty_ty ty);
+E_enventry E_FunEntry(Ty_ty functy, Tr_level level);
 
 //init namespaces
 E_namespace E_Namespace(void);
