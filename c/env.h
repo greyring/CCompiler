@@ -13,7 +13,8 @@ struct E_enventry_
 {
     enum{
         E_varEntry,
-        E_funcEntry
+        E_funcEntry,
+        E_labelEntry
     }kind;
     union
     {
@@ -25,6 +26,10 @@ struct E_enventry_
             Tr_level level;
 			Ty_ty functy;
         }func;
+        struct{
+            Temp_label label;
+            int complete;
+        }label;
     }u;
 };
 
@@ -46,12 +51,15 @@ struct E_linkage_
 
 E_enventry E_VarEntry(Tr_access access, Ty_ty ty);
 E_enventry E_FuncEntry(Ty_ty functy, Tr_level level);
+E_enventry E_LabelEntry(Temp_label label, int complete);
 
 //init namespaces
 E_namespace E_Namespace(void);
 E_linkage E_Linkage(void);
 
+//tenv,venv,menv handle together
 E_namespace E_BeginScope(S_scope scope, E_namespace space);
 E_namespace E_EndScope(E_namespace space);
 
+S_symbol E_checkLabel(S_table lenv);
 #endif

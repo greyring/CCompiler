@@ -95,7 +95,7 @@ struct Ty_ty_
         struct
         {
             Ty_ty ty;
-            A_exp constExp;
+            int bitSize;
         }bitTy;
         struct
         {
@@ -105,7 +105,7 @@ struct Ty_ty_
         struct
         {
             Ty_ty ty;
-            A_exp constExp;
+            struct Ty_expty constExp;
         }arrayTy;
         struct{
             Ty_ty returnTy;
@@ -116,7 +116,7 @@ struct Ty_ty_
 
 #define DECLAR(type, num) \
 enum {Ty_##type = (unsigned long)1<<num}; \
-unsigned long Ty_is##type(Ty_spec spec);
+unsigned long Ty_is##type(unsigned long specs);
 
 //qualifier
 DECLAR(CONST, 0); DECLAR(VOLATILE, 1); DECLAR(RESTRICT, 2);
@@ -130,11 +130,12 @@ DECLAR(CHAR, 10); DECLAR(SHORT, 11); DECLAR(INT, 12);
 DECLAR(FLOAT, 13); DECLAR(DOUBLE, 14);
 DECLAR(SIGNED, 15); DECLAR(UNSIGNED, 16);
 DECLAR(STRUCT, 17); DECLAR(UNION, 18); DECLAR(ENUM, 19);
-//can not be assigned
-DECLAR(RVAL, 20);
+
+DECLAR(RVAL, 20);//can not get address
 #undef DECLAR
 
-Ty_ty Ty_Void();    Ty_ty Ty_VVoid(unsigned long);
+Ty_ty Ty_Null();
+Ty_ty Ty_Void();    
 Ty_ty Ty_Char();    Ty_ty Ty_VChar(unsigned long);
 Ty_ty Ty_UChar();   Ty_ty Ty_VUChar(unsigned long);
 Ty_ty Ty_Short();   Ty_ty Ty_VShort(unsigned long);
@@ -154,17 +155,30 @@ unsigned long Ty_isLONG(Ty_spec spec);
 unsigned long Ty_isSimpleType(Ty_spec spec);
 
 //test type
-int Ty_isIntTy(Ty_ty ty);
-int Ty_isIntCTy(Ty_ty ty);//todo
+int Ty_isVoidTy(Ty_ty ty);//todo
+int Ty_isBasicCTy(Ty_ty ty);//todo
+int Ty_isIntTy(Ty_ty ty);//todo
+int Ty_isRealTy(Ty_ty ty);//todo
+int Ty_isArithTy(Ty_ty ty);//todo
+int Ty_isScalarTy(Ty_ty ty);//todo
+int Ty_isArrayTy(Ty_ty ty);//todo
+int Ty_isPointerTy(Ty_ty ty);//todo
+int Ty_isFuncTy(Ty_ty ty);//todo
+int Ty_isSUTy(Ty_ty ty);//todo
+int Ty_isMLTy(Ty_ty ty);//modifieable lval
 
+int Ty_isCompleteTy(Ty_ty ty);//todo
+
+
+void Ty_calcASC(Ty_ty type);
 Ty_dec Ty_specdec(Ty_spec spec, Ty_dec dec);
 
 
 Ty_ty Ty_ForwardTy(Ty_ty ty);//init incomplete
 Ty_ty Ty_NameTy(Ty_ty ty);
-Ty_ty Ty_BitTy(Ty_ty ty, A_exp constExp);
+Ty_ty Ty_BitTy(Ty_ty ty, int bitSize);
 Ty_ty Ty_PointerTy(Ty_ty ty, unsigned long qual);
-Ty_ty Ty_ArrayTy(Ty_ty ty, A_exp constExp);
+Ty_ty Ty_ArrayTy(Ty_ty ty, Tr_exp constExp, Ty_ty expTy);
 Ty_ty Ty_FuncTy(Ty_ty returnTy, Ty_fieldList params);
 
 Ty_decList Ty_DecList(Ty_decList head, Ty_dec tail);//return a struct
@@ -175,7 +189,17 @@ Ty_sFieldList Ty_SFieldList(Ty_sFieldList head, Ty_sField tail);//return a struc
 
 Ty_ty Ty_actualTy(Ty_ty ty);
 
+//semant type test
+//actual ty
 int Ty_areSameTy(Ty_ty ty1, Ty_ty ty2);//todo
 int Ty_canAssignTy(Ty_ty dst, Ty_ty src);//todo
+int Ty_canGetPointer(Ty_ty ty);//todo
+
+Ty_ty Ty_muldivTy(Ty_ty ty1, Ty_ty ty2);//todo
+Ty_ty Ty_modTy(Ty_ty ty1, Ty_ty ty2);//todo
+Ty_ty Ty_plusminusTy(Ty_ty ty1, Ty_ty ty2);//todo
+Ty_ty Ty_lrshiftTy(Ty_ty ty1, Ty_ty ty2);//todo
+Ty_ty Ty_bitwiseTy(Ty_ty ty1, Ty_ty ty2);//todo
+Ty_ty Ty_logicTy(Ty_ty ty1, Ty_ty ty2);//todo
 
 #endif

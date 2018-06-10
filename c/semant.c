@@ -6,22 +6,39 @@
 #include "errormsg.h"
 #include <assert.h>
 
-struct expty Expty(Tr_exp exp, Ty_ty ty);
 static struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_exp);
 static Ty_ty transEType(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_type type);
 static Ty_ty transSUType(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_type type);
 static Ty_spec transSpec(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_spec spec);
 static Ty_decList transDec(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_dec dec);
 static Tr_exp transInit(Tr_level level, E_linkage linkenv, E_namespace nameenv, E_enventry entry, A_init init);
-static void transDeclar(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_declaration declar);
-static void transStat(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_stat);
-static void transDef(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_def def);
+static Tr_exp transDeclar(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_declaration declar);
+static Tr_exp transStat(Tr_level level, E_linkage linkenv, E_namespace nameenv, Temp_label contl, Temp_label breakl, A_stat stat);
+static Tr_exp transDef(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_def def);
 
-struct expty Expty(Tr_exp exp, Ty_ty ty)
+static struct expty Expty(Tr_exp exp, Ty_ty ty)
 {
     struct expty e;
     e.exp = exp; e.ty = ty;
     return e;
+}
+
+static exptyNode SE_ExptyNode(struct expty expty)
+{
+    exptyNode p = checked_malloc(sizeof(*p));
+    p->expty = expty;
+    p->next = NULL;
+    return p;
+}
+
+static exptyList SE_ExptyList(exptyList exptyList, exptyNode exptyNode)
+{
+    if (exptyList.head == NULL)
+    {
+        exptyList.head = exptyList.tail = NULL;
+    }
+    exptyList.tail = exptyList.tail->next = exptyNode;
+    return exptyList;
 }
 
 //trans type spec
@@ -37,43 +54,43 @@ static void _transType(Tr_level level, E_linkage linkenv, E_namespace nameenv, T
                 switch(type->u.simple)
                 {
                     case A_VOID:
-                        if (Ty_isCHAR(ty_spec) || Ty_isSHORT(ty_spec) || Ty_isINT(ty_spec)
-                            ||Ty_isLONG(ty_spec) || Ty_isFLOAT(ty_spec) || Ty_isDOUBLE(ty_spec)
-                            ||Ty_isSIGNED(ty_spec) || Ty_isUNSIGNED(ty_spec))
+                        if (Ty_isCHAR(ty_spec->specs) || Ty_isSHORT(ty_spec->specs) || Ty_isINT(ty_spec->specs)
+                            ||Ty_isLONG(ty_spec) || Ty_isFLOAT(ty_spec->specs) || Ty_isDOUBLE(ty_spec->specs)
+                            ||Ty_isSIGNED(ty_spec->specs) || Ty_isUNSIGNED(ty_spec->specs))
                             EM_error(type->pos, "void type can not be along with other type");
                         else
                             ty_spec->specs |= Ty_VOID;
                         break;
                     case A_CHAR:
-                        if (Ty_isSHORT(ty_spec) || Ty_isINT(ty_spec) ||Ty_isLONG(ty_spec) 
-                         || Ty_isFLOAT(ty_spec) || Ty_isDOUBLE(ty_spec))
+                        if (Ty_isSHORT(ty_spec->specs) || Ty_isINT(ty_spec->specs) ||Ty_isLONG(ty_spec) 
+                         || Ty_isFLOAT(ty_spec->specs) || Ty_isDOUBLE(ty_spec->specs))
                             EM_error(type->pos, "char type can not be along with this type");
-                        else if (Ty_isCHAR(ty_spec))
+                        else if (Ty_isCHAR(ty_spec->specs))
                             EM_error(type->pos, "char type can only appear once");
                         else
                             ty_spec->specs |= Ty_CHAR;
                         break;
                     case A_SHORT:
-                        if (Ty_isVOID(ty_spec) || Ty_isCHAR(ty_spec) || Ty_isLONG(ty_spec) 
-                         || Ty_isFLOAT(ty_spec) || Ty_isDOUBLE(ty_spec))
+                        if (Ty_isVOID(ty_spec->specs) || Ty_isCHAR(ty_spec->specs) || Ty_isLONG(ty_spec) 
+                         || Ty_isFLOAT(ty_spec->specs) || Ty_isDOUBLE(ty_spec->specs))
                             EM_error(type->pos, "short type can not be along with this type"); 
-                        else if (Ty_isSHORT(ty_spec))
+                        else if (Ty_isSHORT(ty_spec->specs))
                             EM_error(type->pos, "short type can only appear once");
                         else
                             ty_spec->specs |= Ty_SHORT;
                         break;
                     case A_INT:
-                        if (Ty_isVOID(ty_spec) || Ty_isCHAR(ty_spec) || Ty_isFLOAT(ty_spec) 
-                         || Ty_isDOUBLE(ty_spec))
+                        if (Ty_isVOID(ty_spec->specs) || Ty_isCHAR(ty_spec->specs) || Ty_isFLOAT(ty_spec->specs) 
+                         || Ty_isDOUBLE(ty_spec->specs))
                             EM_error(type->pos, "int type can not be along with this type");
-                        else if (Ty_isINT(ty_spec))
+                        else if (Ty_isINT(ty_spec->specs))
                             EM_error(type->pos, "int type can only appear once");
                         else
                             ty_spec->specs |= Ty_INT;
                         break;
                     case A_LONG:
-                        if (Ty_isVOID(ty_spec) || Ty_isCHAR(ty_spec) || Ty_isINT(ty_spec)
-                            || Ty_isFLOAT(ty_spec))
+                        if (Ty_isVOID(ty_spec->specs) || Ty_isCHAR(ty_spec->specs) || Ty_isINT(ty_spec->specs)
+                            || Ty_isFLOAT(ty_spec->specs))
                             EM_error(type->pos, "long type can not be along with other type");
                         else if (ty_spec->LONG == 2)
                             EM_error(type->pos, "long type can only appear twice");
@@ -81,39 +98,39 @@ static void _transType(Tr_level level, E_linkage linkenv, E_namespace nameenv, T
                             ty_spec->LONG += 1;
                         break;
                     case A_FLOAT:
-                        if (Ty_isVOID(ty_spec) || Ty_isCHAR(ty_spec) || Ty_isSHORT(ty_spec) 
-                         || Ty_isINT(ty_spec) ||Ty_isLONG(ty_spec) || Ty_isDOUBLE(ty_spec)
-                            ||Ty_isSIGNED(ty_spec) || Ty_isUNSIGNED(ty_spec))
+                        if (Ty_isVOID(ty_spec->specs) || Ty_isCHAR(ty_spec->specs) || Ty_isSHORT(ty_spec->specs) 
+                         || Ty_isINT(ty_spec->specs) ||Ty_isLONG(ty_spec) || Ty_isDOUBLE(ty_spec->specs)
+                            ||Ty_isSIGNED(ty_spec->specs) || Ty_isUNSIGNED(ty_spec->specs))
                             EM_error(type->pos, "float type can not be along with other type");
-                        else if (Ty_isFLOAT(ty_spec))
+                        else if (Ty_isFLOAT(ty_spec->specs))
                             EM_error(type->pos, "float type can only appear once");
                         else
                             ty_spec->specs |= Ty_FLOAT;
                         break;
                     case A_DOUBLE:
-                        if (Ty_isVOID(ty_spec) || Ty_isCHAR(ty_spec) || Ty_isSHORT(ty_spec) 
-                         || Ty_isINT(ty_spec) || Ty_isFLOAT(ty_spec)
-                            ||Ty_isSIGNED(ty_spec) || Ty_isUNSIGNED(ty_spec))
+                        if (Ty_isVOID(ty_spec->specs) || Ty_isCHAR(ty_spec->specs) || Ty_isSHORT(ty_spec->specs) 
+                         || Ty_isINT(ty_spec->specs) || Ty_isFLOAT(ty_spec->specs)
+                            ||Ty_isSIGNED(ty_spec->specs) || Ty_isUNSIGNED(ty_spec->specs))
                             EM_error(type->pos, "double type can not be along with this type");
-                        else if (Ty_isDOUBLE(ty_spec))
+                        else if (Ty_isDOUBLE(ty_spec->specs))
                             EM_error(type->pos, "double type can only appear once");
                         else
                             ty_spec->specs |= Ty_DOUBLE;
                         break;
                     case A_SIGNED:
-                        if (Ty_isVOID(ty_spec) || Ty_isFLOAT(ty_spec) || Ty_isDOUBLE(ty_spec)
-                            || Ty_isUNSIGNED(ty_spec))
+                        if (Ty_isVOID(ty_spec->specs) || Ty_isFLOAT(ty_spec->specs) || Ty_isDOUBLE(ty_spec->specs)
+                            || Ty_isUNSIGNED(ty_spec->specs))
                             EM_error(type->pos, "signed type can not be along with this type");
-                        else if (Ty_isSIGNED(ty_spec))
+                        else if (Ty_isSIGNED(ty_spec->specs))
                             EM_error(type->pos, "signed type can only appear once");
                         else
                             ty_spec->specs |= Ty_SIGNED;
                         break;
                     case A_UNSIGNED:
-                        if (Ty_isVOID(ty_spec) || Ty_isFLOAT(ty_spec) || Ty_isDOUBLE(ty_spec)
-                            || Ty_isSIGNED(ty_spec))
+                        if (Ty_isVOID(ty_spec->specs) || Ty_isFLOAT(ty_spec->specs) || Ty_isDOUBLE(ty_spec->specs)
+                            || Ty_isSIGNED(ty_spec->specs))
                             EM_error(type->pos, "unsigned type can not be along with this type");
-                        else if (Ty_isUNSIGNED(ty_spec))
+                        else if (Ty_isUNSIGNED(ty_spec->specs))
                             EM_error(type->pos, "unsigned type can only appear once");
                         else
                             ty_spec->specs |= Ty_UNSIGNED;
@@ -154,7 +171,7 @@ static void _transType(Tr_level level, E_linkage linkenv, E_namespace nameenv, T
 
 #define TRANSSPEC(NAME) \
 case A_##NAME : \
-	if (Ty_is##NAME(ty_spec)) \
+	if (Ty_is##NAME(ty_spec->specs)) \
 		EM_error(spec->pos, "#NAME" "can only appear once"); \
 	else \
 		ty_spec->specs |= Ty_##NAME; \
@@ -302,16 +319,25 @@ static Ty_dec _transDec(Tr_level level, E_linkage linkenv, E_namespace nameenv, 
             if (ty_dec->type)
                 EM_error(dec->pos, "invalid bitfield type");
             else
-                ty_dec->type = Ty_BitTy(NULL, dec->u.bit.const_exp);
+            {
+                struct expty expty = transExp(level, linkenv, nameenv, dec->u.bit.const_exp);
+                if (Ty_isIntTy(expty.ty) && Ty_isBasicCTy(expty.ty))
+                    ty_dec->type = Ty_BitTy(NULL, Tr_getIntConst(expty.exp));
+                else
+                    EM_error(dec->pos, "bit field should be int constant");
+            }
             break;
         case A_pointer_dec:
             _transPointer(level, linkenv, nameenv, ty_dec, dec->u.pointer.pointer);
             _transDec(level, linkenv, nameenv, ty_dec, dec->u.pointer.dec);
             break;
         case A_array_dec:
-            ty_dec->type = Ty_ArrayTy(ty_dec->type, dec->u.array.assign_exp);
+        {
+            struct expty expty = transExp(level, linkenv, nameenv, dec->u.array.assign_exp);
+            ty_dec->type = Ty_ArrayTy(ty_dec->type, expty.exp, expty.ty);
             _transDec(level, linkenv, nameenv, ty_dec, dec->u.array.dec);
             break;
+        }
         case A_func_dec:
         {
             //if ()//todo
@@ -325,6 +351,7 @@ static Ty_dec _transDec(Tr_level level, E_linkage linkenv, E_namespace nameenv, 
         default://todo array_proto func_id
             assert(0);
     }
+    return ty_dec;
 }
 
 //trans Declator
@@ -368,7 +395,7 @@ static int _transEDeclar(Tr_level level, E_linkage linkenv, E_namespace nameenv,
                 if (init->u.enumtype.const_exp)
                 {
                     struct expty expty = transExp(level, linkenv, nameenv, init->u.enumtype.const_exp);
-                    if (!Ty_isIntCTy(expty.ty))
+                    if (!(Ty_isIntTy(expty.ty) && Ty_isBasicCTy(expty.ty)))
                         EM_error(init->u.enumtype.const_exp->pos, "not a int constant");
                     else
                     {
@@ -570,6 +597,7 @@ static Ty_ty transSUType(Tr_level level, E_linkage linkenv, E_namespace nameenv,
 
 static Tr_exp transInit(Tr_level level, E_linkage linkenv, E_namespace nameenv, E_enventry entry, A_init init)
 {
+    Tr_exp res = NULL;
     switch(init->kind)
     {
         case A_simple_init:
@@ -580,23 +608,29 @@ static Tr_exp transInit(Tr_level level, E_linkage linkenv, E_namespace nameenv, 
                 EM_error(init->pos, "invalid init type");
                 break;
             }
-            return Tr_assignExp(Tr_simpleVar(level, entry->u.var.access), expty.exp);
+            res = Tr_assignExp(Tr_simpleVar(level, entry->u.var.access), expty.exp);
         }
         default://todo
             assert(0);
     }
+    return res;
 }
 
 //may be called in file scope or in block scope
 //alloc space immediately
-static void transDeclar(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_declaration declar)
+static Tr_exp transDeclar(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_declaration declar)
 {
+    Tr_exp res = NULL;
     switch(declar->kind)
     {
         case A_seq_declaration:
-            transDeclar(level, linkenv, nameenv, declar->u.seq.declaration);
-            transDeclar(level, linkenv, nameenv, declar->u.seq.next);
+        {
+            Tr_exp exp1, exp2;
+            exp1 = transDeclar(level, linkenv, nameenv, declar->u.seq.declaration);
+            exp2 = transDeclar(level, linkenv, nameenv, declar->u.seq.next);
+            res = Tr_seqStmt(exp1, exp2);
             break;
+        }
         case A_simple_declaration:
         {
             Ty_spec spec = transSpec(level, linkenv, nameenv, declar->u.simple.spec);
@@ -616,7 +650,7 @@ static void transDeclar(Tr_level level, E_linkage linkenv, E_namespace nameenv, 
                 }
 
                 //todo check
-                if (Ty_isTYPEDEF(spec))//typedef
+                if (Ty_isTYPEDEF(spec->specs))//typedef
                 {
                     if (S_check(nameenv->venv, dec->sym))
                     {
@@ -625,7 +659,7 @@ static void transDeclar(Tr_level level, E_linkage linkenv, E_namespace nameenv, 
                     }
                     S_enter(nameenv->venv, dec->sym, dec->type);
                 }
-                else if (Ty_isEXTERN(spec))//extern
+                else if (Ty_isEXTERN(spec->specs))//extern
                 {
                     Ty_ty ty = NULL;
                     E_enventry entry = NULL;
@@ -688,7 +722,7 @@ static void transDeclar(Tr_level level, E_linkage linkenv, E_namespace nameenv, 
                         }
                     }
                 }
-                else if (Ty_isSTATIC(spec))//static
+                else if (Ty_isSTATIC(spec->specs))//static
                 {
                     //todo
                 }
@@ -730,7 +764,7 @@ static void transDeclar(Tr_level level, E_linkage linkenv, E_namespace nameenv, 
                         //alloc space
                         if (nameenv->venv->scope == S_FILE)
                         {
-                            if (!Ty_isIntCTy(dec->type->size.ty))
+                            if (!(Ty_isIntTy(dec->type->size.ty) && Ty_isBasicCTy(dec->type->size.ty)))
                             {
                                 EM_error(declar->pos, "size can not be determined");
                                 goto next;  
@@ -754,8 +788,7 @@ static void transDeclar(Tr_level level, E_linkage linkenv, E_namespace nameenv, 
                         //init
                         if (dec->init)
                         {
-                            Tr_exp tr_exp = transInit(level, linkenv, nameenv, entry, dec->init);
-                            Tr_addInit(level, tr_exp);
+                            res = transInit(level, linkenv, nameenv, entry, dec->init);
                         }
                     }
                         
@@ -768,23 +801,117 @@ next:
         default:
             assert(0);
     }
+    return res;
 }
 
-static void transStat(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_stat)
+//add stat directly into level
+static Tr_exp transStat(Tr_level level, E_linkage linkenv, E_namespace nameenv, Temp_label contl, Temp_label breakl, A_stat stat)
 {
+    Tr_exp res = NULL;
+    switch(stat->kind)
+    {
+        case A_seq_stat:
+        {
+            Tr_exp exp1, exp2;
+            exp1 = transStat(level, linkenv, nameenv, contl, breakl, stat->u.seq.stat);
+            exp2 = transStat(level, linkenv, nameenv, contl, breakl, stat->u.seq.next);
+            res = Tr_seqStmt(exp1, exp2);
+            break;
+        }
+        case A_exp_stat:
+        {
+            struct expty expty= transExp(level, linkenv, nameenv, stat->u.exp);
+            if (expty.exp == NULL) break;
+            res = expty.exp;
+            break;
+        }
+        case A_dec_stat:
+            transDeclar(level, linkenv, nameenv, stat->u.dec);
+            break;
+        case A_label_stat:
+        {
+            E_enventry entry = S_check(nameenv->lenv, stat->u.label.id);
+            if (entry)
+            {
+                if (entry->u.label.complete)
+                {
+                    EM_error(stat->pos, "label statement defined before");
+                    break;
+                }
 
+                res = Tr_labelStmt(entry->u.label.label);
+            }
+            else
+            {
+                Temp_label label = Temp_namedlabel(stat->u.label.id->name);
+                entry = E_LabelEntry(label, 1);
+                S_enter(nameenv->lenv, stat->u.label.id, entry);
+                res = Tr_labelStmt(label);
+            }
+            break;
+        }
+        case A_gotostat_stat:
+        {
+            E_enventry entry;
+            entry = S_look(nameenv->lenv, stat->u.gotostat);
+            if (!entry)
+            {
+                Temp_label label = Temp_namedlabel(stat->u.gotostat->name);
+                entry = E_LabelEntry(label, 0);
+                S_enter(nameenv->lenv, stat->u.gotostat, label);
+            }
+            res = Tr_jumpStmt(entry->u.label.label);
+            break;
+        }
+        case A_continuestat_stat:
+            if (contl == NULL)
+            {
+                EM_error(stat->pos, "continue is not in a loop");
+                break;
+            }
+            res = Tr_jumpStmt(contl);
+            break;
+        case A_breakstat_stat:
+            if (breakl == NULL)
+            {
+                EM_error(stat->pos, "break is not in a loop");
+                break;
+            }
+            res = Tr_jumpStmt(breakl);
+            break;
+        default:
+            assert(0);
+        /*
+        A_casestat_stat,
+        A_defaultstat_stat,
+        A_ifstat_stat,
+        A_switchstat_stat,
+        A_whilestat_stat,
+        A_dowhile_stat,
+        A_forexp_stat,
+        A_fordec_stat,
+        A_returnstat_stat
+        */
+    }
+    return res;
 }
 
-static void transDef(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_def def)
+static Tr_exp transDef(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_def def)
 {
+    Tr_exp res;
     switch(def->kind)
     {
         case A_seq_def:
-            transDef(level, linkenv, nameenv, def->u.seq.def);
-            transDef(level, linkenv, nameenv, def->u.seq.next);
+        {
+            Tr_exp exp1, exp2;
+            exp1 = transDef(level, linkenv, nameenv, def->u.seq.def);
+            exp2 = transDef(level, linkenv, nameenv, def->u.seq.next);
+            res = Tr_seqStmt(exp1, exp2);
             break;
+        }
         case A_func_def:
         {
+            Tr_level newlevel = NULL;
             E_enventry entry = NULL;
             Ty_spec spec = transSpec(level, linkenv, nameenv, def->u.func.spec);
             Ty_decList decList = transDec(level, linkenv, nameenv, def->u.func.func);
@@ -806,295 +933,712 @@ static void transDef(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_d
                     EM_error(def->pos, "has been defined before");
                     break;
                 }
-                level = Tr_newLevel(level, Temp_newlabel(), dec->type);
+                newlevel = Tr_newLevel(level, Temp_newlabel(), dec->type);
                 entry->u.func.level = level;
             }
             else
             {
-                level = Tr_newLevel(level, Temp_newlabel(), dec->type);
+                newlevel = Tr_newLevel(level, Temp_newlabel(), dec->type);
                 entry = E_FuncEntry(dec->type, level);
             }
+
             Ty_field temp = NULL;
             Tr_access access = NULL;
+            S_symbol labelName = NULL;
+            Tr_exp stats = NULL;
             E_BeginScope(S_BLOCK, nameenv);
             S_beginScope(S_NOLINK, linkenv->nolink);
+            S_beginScope(S_FUNC, nameenv->lenv);
             for(temp = dec->type->u.funcTy.params.head; temp; temp = temp->next)
             {
-                access = Tr_StackAccess(level, temp->ty);
+                access = Tr_StackAccess(newlevel, temp->ty);
                 entry = E_VarEntry(access, temp->ty);
                 S_enter(nameenv->venv, dec->sym, entry);
                 S_enter(linkenv->nolink, dec->sym, entry);
             }
-            transStat(level, linkenv, nameenv, def->u.func.stat);
+            stats = transStat(newlevel, linkenv, nameenv, NULL, NULL, def->u.func.stat);
+            Tr_addFuncStat(newlevel, stats);
+            if ((labelName = E_checkLabel(nameenv->lenv)))
+                EM_error(0, "Label %s not found", labelName->name);//todo pos
+            S_endScope(nameenv->lenv);
             S_endScope(linkenv->nolink);
             E_EndScope(nameenv);
             break;
         }
         case A_simple_dec:
-            transDeclar(level, linkenv, nameenv, def->u.simple);
+            res = transDeclar(level, linkenv, nameenv, def->u.simple);
             break;
         default:
             assert(0);
     }
+    return res;
 }
 
-/*
-struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_exp a){
+static exptyList transFuncArgs(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_exp args)
+{
+    exptyList list;
+    list.head = list.tail = NULL;
+    switch(args->kind)
+    {
+        case A_seq_exp:
+        {
+            struct expty arg;
+            list = transFuncArgs(level, linkenv, nameenv, args->u.seq.expr);
+            arg = transExp(level, linkenv, nameenv, args->u.seq.next);
+            list = SE_ExptyList(list, SE_ExptyNode(arg));
+            break;
+        }
+        default:
+        {
+            struct expty arg;
+            arg = transExp(level, linkenv, nameenv, args);
+            list = SE_ExptyList(list, SE_ExptyNode(arg));
+            break;
+        }
+    }
+    return list;
+}
+
+struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_exp a)
+{
+    struct expty res;
+    res = Expty(NULL, Ty_Void());
     switch (a->kind){
         case A_id_exp :
+        {
             E_enventry e = S_look(nameenv->venv, a->u.id);
-            if (e == NULL || e->kind != E_varEntry)
+            if (e == NULL)
                 EM_error(a->pos, "No such variable");
-            return Expty(Tr_simpleVar(level, e->u.access), e->u.var.ty);//access中需要有size啥的
-        case A_intexp_exp :
-            return Expty(Tr_intExp(a->u.intexp), Ty_INT_());
-        case A_floatexp_exp :
-            return Expty(Tr_floatExp(a->u.floatexp), Ty_Float());
-        case A_charexp_exp :
-            return Expty(Tr_charExp(a->u.charexp), Ty_Char());
-        case A_strexp_exp :
-            return Expty(Tr_strExp(a->u.strexp), Ty_ConstP(Ty_Char()));
-        case A_subscript_exp : {
-            Expty idExp = transExp(venv, tenv, a->u.subscript.expr);
-            Expty sbExp = transExp(venv, tenv, a->u.subscript.subscript);
-            if (sbExp.ty->kind != Ty_int){
-                printError(a->pos, "Subscript needs to be int type");
-            }
-            if (idExp.ty->kind != Ty_array){
-                printError(a->pos, "id needs to be array type");
-            }
-            return Expty(NULL, idExp.ty->u.array.array);
+            if (e->kind == E_varEntry)
+                res = Expty(Tr_simpleVar(level, e->u.var.access), e->u.var.ty);
+            else if (e->kind == E_funcEntry)
+                res = Expty(Tr_simpleFunc(e->u.func.level), e->u.func.functy);
+            else
+                assert(0);
             break;
         }
-        case A_funccall_exp : {//Simple One
-            if (a->u.funccal.expr == NULL || a->u.funccall.expr->kind != A_id_exp){
-                printError(a->pos, "func needs a name");
+        case A_intexp_exp :
+            res = Expty(Tr_intExp(a->u.intexp), Ty_Int());
+            break;
+        case A_floatexp_exp :
+            res = Expty(Tr_doubleExp(a->u.floatexp), Ty_Double());
+            break;
+        case A_charexp_exp :
+            res = Expty(Tr_charExp(a->u.charexp), Ty_Char());
+            break;
+        case A_strexp_exp :
+            res = Expty(Tr_strExp(a->u.strexp), Ty_PointerTy(Ty_Char(), Ty_CONST));
+            break;
+        case A_subscript_exp : 
+        {
+            struct expty idExp = transExp(level, linkenv, nameenv, a->u.subscript.expr);
+            struct expty sbExp = transExp(level, linkenv, nameenv, a->u.subscript.subscript);
+            if (!Ty_isIntTy(sbExp.ty)){
+                EM_error(a->pos, "Subscript needs to be int type");
+                break;
             }
-            Symbol sym = a->u.funccall.expr->u.id;
-            E_enventry e = S_look(tenv, id);
-
-            if (e == NULL){
-                printError(a->pos, "func not defined");
-            }
-
-            if (e->kind != E_funEntry){
-                printError(a->pos, "not a func");
-            }
-
-            Ty_tyList formals = e->u.fun.formals;
-            A_exp args = a->u.funccall.args;
-
-            if (args == NULL){
-                if (formals != NULL){
-                    printError(a->pos, "func need params");
-                }
-                else{
-                    return Expty(NULL, e->u.fun.result);
-                }
-            }
-            else while (1){
-                Expty exp;
-                if (args->kind == A_seq_exp){
-                    exp = transExp(venv, tenv, args->u.expr);
-                    if (formals->head == NULL || formals->head->kind != exp.ty->kind){
-                        printError(a->pos, "Unmatched params");
-                    }
-                    formals = formals->tail;
-                    args = args->u.seq.next;
-                }
-                else{
-                    exp = transExp(venv, tenv, args);
-                    if (formals->head == NULL || formals->head->kind != exp.ty->kind){
-                        printError(a->pos, "Unmatched params");
-                    }
-                    formals = formals->tail;
-                    if (formals != NULL){
-                        printError(a->pos, "Umatched params");
-                    }
+            if (Ty_isArrayTy(idExp.ty))
+            {
+                Ty_ty subty = idExp.ty->u.arrayTy.ty;
+                Ty_calcASC(idExp.ty);
+                if (!subty->complete)
+                {
+                    EM_error(a->pos, "subscript type is incomplete");
                     break;
                 }
+                res = Expty(Tr_subExp(idExp.exp, sbExp.exp, subty->size.exp), subty);
+            }
+            else if (Ty_isPointerTy(idExp.ty))
+            {
+                Ty_ty subty = idExp.ty->u.pointerTy.ty;
+                Ty_calcASC(idExp.ty);
+                if (!subty->complete)
+                {
+                    EM_error(a->pos, "subscript type is incomplete");
+                    break;
+                }
+                res = Expty(Tr_subExp(idExp.exp, sbExp.exp, subty->size.exp), subty);
+            }
+            else
+            {
+                EM_error(a->pos, "id needs to be array or pointer type");
+                break;
+            }
+            break;
+        }
+        case A_funccall_exp : //Simple One
+        {
+            Ty_field        field;
+            exptyList       args;
+            exptyNode       arg, temp;
+            Tr_expList      expList;
+            struct expty    funcExp;
+            Ty_ty           returnTy;
+
+            funcExp = transExp(level, linkenv, nameenv, a->u.funccall.expr);
+            if (Ty_isFuncTy(funcExp.ty))
+            {
+                field = funcExp.ty->u.funcTy.params.head;
+                returnTy = funcExp.ty->u.funcTy.returnTy;
+            }
+            else if (Ty_isPointerTy(funcExp.ty) && Ty_isFuncTy(funcExp.ty->u.pointerTy.ty))//function pointer
+            {
+                field = funcExp.ty->u.pointerTy.ty->u.funcTy.params.head;
+                returnTy = funcExp.ty->u.pointerTy.ty->u.funcTy.returnTy;
+            }
+            else
+            {
+                EM_error(a->pos, "func is not able to be called");
+                break;
+            }
+            
+            expList.head = expList.tail = NULL;
+            args = transFuncArgs(level, linkenv, nameenv, a->u.funccall.args);
+
+            arg = args.head;
+            while(field && arg)
+            {
+                if (!Ty_canAssignTy(field->ty, arg->expty.ty))
+                {
+                    EM_error(a->pos, "not consistent param type");//todo pos
+                    break;
+                }
+                expList = Tr_ExpList(expList, arg->expty.exp);
+                field = field->next;
+                temp = arg;
+                arg = arg->next;
+                free(temp);
             }
 
-            return Expty(NULL, e->u.fun.result);
-            break;
-        }
-        case A_dot_exp : {//struct expr.id
-            break;
-        }
-        case A_point_exp : {//struct expr->id
-            break;
-        }
-        case A_postpp_exp : {
-            Expty exp = transExp(venv, tenv, a->u.postpp);
-            if (exp.ty->kind != Ty_int){
-                printError(a->pos, "Only integer can operate plus plus");
+            if (field != NULL || arg != NULL)
+            {
+                EM_error(a->pos, "arg num is different");
+                break;
             }
-            return Expty(NULL, Ty_Int);
+
+            returnTy->specs |= Ty_RVAL | Ty_CONST;
+            res = Expty(Tr_funcCallExp(funcExp.exp, expList), returnTy);
             break;
         }
-        case A_postmm_exp : {
-            Expty exp = transExp(venv, tenv, a->u.postpp);
-            if (exp.ty->kind != Ty_int){
-                printError(a->pos, "Only integer can operate minus minus");
+        case A_dot_exp :
+        {
+            struct expty structExp;
+            Ty_sField mem = NULL;
+
+            structExp = transExp(level, linkenv, nameenv, a->u.dot.expr);
+            if (!Ty_isSUTy(structExp.ty))
+            {
+                EM_error(a->pos, "type is not struct");
+                break;
             }
-            return Expty(NULL, Ty_Int);
+
+            mem = structExp.ty->u.structTy.head;
+            while(mem)
+            {
+                if (mem->name == a->u.dot.id)
+                    break;
+                mem = mem->next;
+            }
+            if (mem == NULL)
+            {
+                EM_error(a->pos, "member not found");
+                break;
+            }
+            res = Expty(Tr_dotExp(structExp.exp, mem->offset), mem->ty);
             break;
         }
-        case A_init_exp : {
+        case A_point_exp ://->
+        {
+            struct expty spExp;//struct pointer
+            Ty_sField mem = NULL;
+
+            spExp = transExp(level, linkenv, nameenv, a->u.point.expr);
+            if (!Ty_isPointerTy(spExp.ty) || !Ty_isSUTy(spExp.ty->u.pointerTy.ty))
+            {
+                EM_error(a->pos, "type is not a pointer to struct");
+                break;
+            }
+
+            mem = spExp.ty->u.pointerTy.ty->u.structTy.head;
+            while(mem)
+            {
+                if (mem->name == a->u.point.id)
+                    break;
+                mem = mem->next;
+            }
+            if (mem == NULL)
+            {
+                EM_error(a->pos, "member not found");
+                break;
+            }
+            res = Expty(Tr_pointExp(spExp.exp, mem->offset), mem->ty);
+            break;
+        }
+        case A_postpp_exp : case A_postmm_exp : 
+        {
+            struct expty expty = transExp(level, linkenv, nameenv, a->u.postpp);
+            if (Ty_isRealTy(expty.ty))
+            {
+                if (!Ty_isMLTy(expty.ty))
+                {
+                    EM_error(a->pos, "++ can not applied to const or rvalue");
+                    break;
+                }
+                if (a->kind == A_postpp_exp)
+                    res = Expty(Tr_postppIntExp(expty.exp), expty.ty);
+                else
+                    res = Expty(Tr_postmmIntExp(expty.exp), expty.ty);
+            }
+            else if (Ty_isPointerTy(expty.ty))
+            {
+                if (!Ty_isMLTy(expty.ty))
+                {
+                    EM_error(a->pos, "++ can not applied to const or rvalue");
+                    break;
+                }
+                if (a->kind == A_postpp_exp)
+                    res = Expty(Tr_postppPointerExp(expty.exp), expty.ty);
+                else
+                    res = Expty(Tr_postmmIntExp(expty.exp), expty.ty);
+            }
+            else
+            {
+                EM_error(a->pos, "Only integer or pointer can operate ++");
+                break;
+            }
             break;
         }
         
-        case A_prepp_exp : {
-            Expty exp = transExp(venv, tenv, a->u.postpp);
-            if (exp.ty->kind != Ty_int){
-                printError(a->pos, "Only integer can operate plus plus");
-            }
-            return Expty(NULL, Ty_Int);
+        case A_init_exp : //unsupported
+        {
             break;
         }
-        case A_premm_exp : {
-            Expty exp = transExp(venv, tenv, a->u.postpp);
-            if (exp.ty->kind != Ty_int){
-                printError(a->pos, "Only integer can operate minus minus");
-            }
-            return Expty(NULL, Ty_Int);
-            break;
-        }
-        case A_unaryop_exp : {
-            Expty exp = transExp(venv, tenv, a->u.unaryop.expr);
-            if ((exp.ty->kind != Ty_int   || 
-                 exp.ty=>kind != Ty_float)&&
-                (op == A_PLUS || op == A_MINUS)){
-                    printError(a->pos, "Unmatched operation");
-            }
-            if (exp.ty->kind != Ty_ind && op == A_NOT){
-                printError(a->pos, "Unmatched operation");
-            }
 
-            return Expty(NULL, exp.ty);
+        case A_prepp_exp : case A_premm_exp :
+        {
+            struct expty expty = transExp(level, linkenv, nameenv, a->u.postpp);
+            if (Ty_isIntTy(expty.ty))
+            {
+                if (!Ty_isMLTy(expty.ty) || !Ty_isMLTy(expty.ty))
+                {
+                    EM_error(a->pos, "++ can not applied to const or rvalue");
+                    break;
+                }
+                if (a->kind == A_prepp_exp)
+                    res = Expty(Tr_preppIntExp(expty.exp), expty.ty);
+                else
+                    res = Expty(Tr_premmIntExp(expty.exp), expty.ty);
+            }
+            else if (Ty_isPointerTy(expty.ty))
+            {
+                if (!Ty_isMLTy(expty.ty) || !Ty_isMLTy(expty.ty))
+                {
+                    EM_error(a->pos, "++ can not applied to const or rvalue");
+                    break;
+                }
+                if (a->kind == A_prepp_exp)
+                    res = Expty(Tr_preppPointerExp(expty.exp), expty.ty);
+                else
+                    res = Expty(Tr_premmIntExp(expty.exp), expty.ty);
+            }
+            else
+            {
+                EM_error(a->pos, "Only integer or pointer can operate ++");
+                break;
+            }
             break;
         }
-        case A_sizeof_unary_exp : {
+        case A_unaryop_exp : 
+        {
+            //A_AND, A_MUL, A_PLUS, A_MINUS, A_NOT, A_LOGNOT;
+            struct expty expty = transExp(level, linkenv, nameenv, a->u.unaryop.expr);
+            switch (a->u.unaryop.op)
+            {
+                case A_AND:
+                {
+                    if (!Ty_canGetPointer(expty.ty))
+                    {
+                        EM_error(a->pos, "can not get address of rval");
+                        break;
+                    }
+                    res = Expty(Tr_getPointer(expty.exp), Ty_PointerTy(expty.ty, 0));
+                    break;
+                }
+                case A_MUL:
+                {
+                    if (!Ty_isPointerTy(expty.ty))
+                    {
+                        EM_error(a->pos, "type is not pointer");
+                        break;
+                    }
+                    res = Expty(Tr_getMem(expty.exp), expty.ty->u.pointerTy.ty);
+                    break;
+                }
+                case A_PLUS:
+                    if (!Ty_isArithTy(expty.ty))
+                    {
+                        EM_error(a->pos, "type is not arithmetic type");
+                        break;
+                    }
+                    break;
+                case A_MINUS:
+                {
+                    if (!Ty_isArithTy(expty.ty))
+                    {
+                        EM_error(a->pos, "type is not arithmetic type");
+                        break;
+                    }
+                    if (Ty_isBasicCTy(expty.ty))
+                        res = Expty(Tr_mulConst(expty.exp, Tr_IntConst(-1)), expty.ty);
+                    else
+                    {
+                        if (Ty_isIntTy(expty.ty))
+                            res = Expty(Tr_mulInt(expty.exp, Tr_IntConst(-1)), expty.ty);
+                        else
+                            res = Expty(Tr_mulDouble(expty.exp, Tr_IntConst(-1)), expty.ty);
+                    }
+                    break;
+                }
+                case A_NOT:
+                {
+                    if (!Ty_isIntTy(expty.ty))
+                    {
+                        EM_error(a->pos, "type is not int type");
+                        break;
+                    }
+                    if (Ty_isBasicCTy(expty.ty))
+                        res = Expty(Tr_notConst(expty.exp), expty.ty);
+                    else
+                        res = Expty(Tr_notInt(expty.exp), expty.ty);
+                }
+                case A_LOGNOT:
+                {
+                    if (!Ty_isScalarTy(expty.ty))
+                    {
+                        EM_error(a->pos, "type is not scalar type");
+                        break;
+                    }
+                    if (Ty_isBasicCTy(expty.ty))
+                        res = Expty(Tr_lognotConst(expty.exp), expty.ty);
+                    else
+                        res = Expty(Tr_lognotInt(expty.exp), Ty_VInt(Ty_CONST | Ty_RVAL));
+                    break;
+                }
+                default:
+                    assert(0);
+            }
             break;
         }
-        case A_sizeof_type_exp : {
+        case A_sizeof_unary_exp : 
+        {
+            struct expty expty = transExp(level, linkenv, nameenv, a->u.sizeof_unary);
+            if (!Ty_isCompleteTy(expty.ty) || Ty_isFuncTy(expty.ty))//todo bit
+            {
+                EM_error(a->pos, "sizeof can not applied to uncomplete, func type");
+                break;
+            }
+            res = Expty(Tr_sizeof(expty.ty), Ty_Int());
+            break;
+        }
+        case A_sizeof_type_exp ://TODO
+        {
             break;
         }
 
         case A_cast_exp : {//TODO
-            Expty exp = transExp(vnev, tenv, a->u.cast.expr);
-            return Expty();
             break;
         }
-
-        case A_binop_exp : {
-            Expty left = transExp(venv, tenv, a->u.binop.expr1);
-            Expty right= transExp(venv, tenv, a->u.binop.expr2);
-            Expty ret;
+        
+        case A_binop_exp : //only for integer
+        {
+            struct expty left = transExp(level, linkenv, nameenv, a->u.binop.expr1);
+            struct expty right= transExp(level, linkenv, nameenv, a->u.binop.expr2);
+            Ty_ty returnTy = NULL;
             switch (a->u.binop.op){//only the same type
-                case A_PLUS : {
-                    if (left.ty->kind != right.ty->kind){
-                        printError(a->pos, "Left and right type should be the same");
+                case A_MUL : case A_DIV : 
+                {
+                    if (!Ty_isArithTy(left.ty) || !Ty_isArithTy(right.ty)){
+                        EM_error(a->pos, "inconsistent type to mul or div");
+                        break;
                     }
-                    if (left.ty->kind != Ty_int || left.ty->kind != Ty_float){
-                        printError(a->pos, "Only int or float can operate plus");
+                    returnTy = Ty_muldivTy(left.ty, right.ty);
+                    if (Ty_isIntTy(returnTy))
+                    {
+                        if (Ty_isBasicCTy(returnTy))
+                        {
+                            if (a->u.binop.op == A_MUL)
+                                res = Expty(Tr_CBinop(Tr_MULINT, left.exp, right.exp), returnTy);
+                            else
+                                res = Expty(Tr_CBinop(Tr_DIVINT, left.exp, right.exp), returnTy);
+                        }
+                        else
+                        {
+                            if (a->u.binop.op == A_MUL)
+                                res = Expty(Tr_Binop(Tr_MULINT, left.exp, right.exp), returnTy);
+                            else
+                                res = Expty(Tr_Binop(Tr_DIVINT, left.exp, right.exp), returnTy);
+                        }
                     }
-                    return Expty(NULL, left.ty);
+                    else
+                    {
+                        //double
+                    }
+                    break;
                 }
-                case A_MINUS : {
-                    if (left.ty->kind != right.ty->kind){
-                        printError(a->pos, "Left and right type should be the same");
+                case A_MOD : 
+                {
+                    if (!Ty_isIntTy(left.ty) || !Ty_isIntTy(right.ty)){
+                        EM_error(a->pos, "inconsistent type to mod");
+                        break;
                     }
-                    if (left.ty->kind != Ty_int || left.ty->kind != Ty_float){
-                        printError(a->pos, "Only int or float can operate minus");
-                    }
-                    return Expty(NULL, left.ty);
+                    returnTy = Ty_modTy(left.ty, right.ty);
+                    if (Ty_isBasicCTy(returnTy))
+                        res = Expty(Tr_CBinop(Tr_MODINT, left.exp, right.exp), returnTy);
+                    else
+                        res = Expty(Tr_Binop(Tr_MODINT, left.exp, right.exp), returnTy);
+                    break;
                 }
-                case A_MUL : {
-                    if (left.ty->kind != right.ty->kind){
-                        printError(a->pos, "Left and right type should be the same");
+                case A_PLUS : case A_MINUS : 
+                {
+                    if ((Ty_isArithTy(left.ty) && (Ty_isArithTy(right.ty) || Ty_isPointerTy(right.ty)))
+                     ||(Ty_isArithTy(right.ty) && (Ty_isArithTy(right.ty) || Ty_isPointerTy(left.ty))))
+                    {
+                        returnTy = Ty_plusminusTy(left.ty, right.ty);
+                        if (Ty_isIntTy(returnTy) || Ty_isPointerTy(returnTy))
+                        {
+                            if (Ty_isBasicCTy(returnTy))
+                            {
+                                if (a->u.binop.op == A_PLUS)
+                                    res = Expty(Tr_CBinop(Tr_PLUSINT, left.exp, right.exp), returnTy);
+                                else
+                                    res = Expty(Tr_CBinop(Tr_SUBINT, left.exp, right.exp), returnTy);
+                            }
+                            else
+                            {
+                                if (a->u.binop.op == A_PLUS)
+                                    res = Expty(Tr_Binop(Tr_PLUSINT, left.exp, right.exp), returnTy);
+                                else
+                                    res = Expty(Tr_Binop(Tr_SUBINT, left.exp, right.exp), returnTy);
+                            }
+                        }
+                        else
+                        {
+                            //double
+                        }
                     }
-                    if (left.ty->kind != Ty_int || left.ty->kind != Ty_float){
-                        printError(a->pos, "Only int or float can operate mul");
+                    else
+                    {
+                        EM_error(a->pos, "inconsistent type to add or minus");
+                        break;
                     }
-                    return Expty(NULL, left.ty);
+                    break;
                 }
-                case A_DIV : {
-                    if (left.ty->kind != right.ty->kind){
-                        printError(a->pos, "Left and right type should be the same");
+                case A_LSHIFT : case A_RSHIFT:
+                {
+                    if (!Ty_isIntTy(left.ty) || !Ty_isIntTy(right.ty)){
+                        EM_error(a->pos, "inconsistent type to shift");
+                        break;
                     }
-                    if (left.ty->kind != Ty_int || left.ty->kind != Ty_float){
-                        printError(a->pos, "Only int or float can operate div");
+                    returnTy = Ty_lrshiftTy(left.ty, right.ty);
+                    if (Ty_isBasicCTy(returnTy))
+                    {
+                        if (a->u.binop.op == A_LSHIFT)
+                            res = Expty(Tr_CBinop(Tr_LSINT, left.exp, right.exp), returnTy);
+                        else
+                            res = Expty(Tr_CBinop(Tr_RSINT, left.exp, right.exp), returnTy);
                     }
-                    return Expty(NULL, left.ty);
+                    else
+                    {
+                        if (a->u.binop.op == A_LSHIFT)
+                            res = Expty(Tr_Binop(Tr_LSINT, left.exp, right.exp), returnTy);
+                        else
+                            res = Expty(Tr_Binop(Tr_RSINT, left.exp, right.exp), returnTy);
+                    }
+                    break;
                 }
-                case A_MOD : {
-                    if (left.ty->kind != right.ty->kind){
-                        printError(a->pos, "Left and right type should be the same");
+                case A_GT : case A_GTE : case A_LT : case A_LTE :
+                {
+                    if (
+                    (Ty_isArithTy(left.ty) && Ty_isArithTy(right.ty)) ||
+                    (Ty_isPointerTy(left.ty) && Ty_isPointerTy(right.ty) && 
+                        Ty_areSameTy(left.ty->u.pointerTy.ty, right.ty->u.pointerTy.ty))
+                    )
+                    {
+                        returnTy = Ty_VInt(Ty_RVAL);
+                        if ((Ty_isIntTy(left.ty) || Ty_isPointerTy(left.ty) &&
+                            (Ty_isIntTy(right.ty) || Ty_isPointerTy(right.ty))
+                        ))
+                        {
+                            if (Ty_isBasicCTy(returnTy))
+                            {
+                                if (a->u.binop.op == A_GT)
+                                    res = Expty(Tr_CBinop(Tr_GTINT, left.exp, right.exp), returnTy);
+                                if (a->u.binop.op == A_LT)
+                                    res = Expty(Tr_CBinop(Tr_LTINT, left.exp, right.exp), returnTy);
+                                if (a->u.binop.op == A_GTE)
+                                    res = Expty(Tr_CBinop(Tr_GTEINT, left.exp, right.exp), returnTy);
+                                if (a->u.binop.op == A_LTE)
+                                    res = Expty(Tr_CBinop(Tr_LTEINT, left.exp, right.exp), returnTy);
+                            }
+                            else
+                            {
+                                if (a->u.binop.op == A_GT)
+                                    res = Expty(Tr_Binop(Tr_GTINT, left.exp, right.exp), returnTy);
+                                if (a->u.binop.op == A_LT)
+                                    res = Expty(Tr_Binop(Tr_LTINT, left.exp, right.exp), returnTy);
+                                if (a->u.binop.op == A_GTE)
+                                    res = Expty(Tr_Binop(Tr_GTEINT, left.exp, right.exp), returnTy);
+                                if (a->u.binop.op == A_LTE)
+                                    res = Expty(Tr_Binop(Tr_LTEINT, left.exp, right.exp), returnTy);
+                            }
+                        }
+                        else
+                        {
+                            //double
+                        }
                     }
-                    if (left.ty->kind != Ty_int){
-                        printError(a->pos, "Only int can operate mod");
+                    else
+                    {
+                        EM_error(a->pos, "inconsistent type to inequality");
+                        break;
                     }
-                    return Expty(NULL, left.ty);
+                    break;
                 }
-                case A_AND : {
-                    if (left.ty->kind != right.ty->kind){
-                        printError(a->pos, "Left and right type should be the same");
+                case A_EQ : case A_NEQ :
+                {
+                    if (
+                    (Ty_isArithTy(left.ty) && Ty_isArithTy(right.ty)) ||
+                    (Ty_isPointerTy(left.ty) && Ty_isPointerTy(right.ty) && 
+                        (Ty_areSameTy(left.ty->u.pointerTy.ty, right.ty->u.pointerTy.ty) ||
+                         (Ty_isVoidTy(left.ty->u.pointerTy.ty) || Ty_isVoidTy(right.ty->u.pointerTy.ty)) ||
+                         (left.ty == Ty_Null() || right.ty == Ty_Null())
+                        ))
+                    )
+                    {
+                        returnTy = Ty_VInt(0);
+                        if ((Ty_isIntTy(left.ty) || Ty_isPointerTy(left.ty)) &&
+                            (Ty_isIntTy(right.ty) || Ty_isPointerTy(right.ty))
+                        )
+                        {
+                            if (Ty_isBasicCTy(left.ty) && Ty_isBasicCTy(right.ty))
+                            {
+                                if (a->u.binop.op == A_EQ)
+                                    res = Expty(Tr_CBinop(Tr_EQINT, left.exp, right.exp), returnTy);
+                                if (a->u.binop.op == A_NEQ)
+                                    res = Expty(Tr_CBinop(Tr_NEQINT, left.exp, right.exp), returnTy);
+                            }
+                            else
+                            {
+                                if (a->u.binop.op == A_GT)
+                                    res = Expty(Tr_Binop(Tr_EQINT, left.exp, right.exp), returnTy);
+                                if (a->u.binop.op == A_LT)
+                                    res = Expty(Tr_Binop(Tr_NEQINT, left.exp, right.exp), returnTy);
+                            }
+                        }
                     }
-                    if (left.ty->kind != Ty_int){
-                        printError(a->pos, "Only int can operate and");
+                    else
+                    {
+                        EM_error(a->pos, "inconsistent type to equality");
+                        break;
                     }
-                    return Expty(NULL, left.ty);
+                    break;
                 }
-                case A_XOR : {
-                    if (left.ty->kind != right.ty->kind){
-                        printError(a->pos, "Left and right type should be the same");
+                case A_AND : case A_XOR : case A_OR : 
+                {
+                    if (!Ty_isIntTy(left.ty) || !Ty_isIntTy(right.ty)){
+                        EM_error(a->pos, "inconsistent type to bitwise op");
+                        break;
                     }
-                    if (left.ty->kind != Ty_int){
-                        printError(a->pos, "Only int can operate xor");
+                    returnTy = Ty_bitwiseTy(left.ty, right.ty);
+                    if (Ty_isBasicCTy(returnTy))
+                    {
+                        if (a->u.binop.op == A_AND)
+                            res = Expty(Tr_CBinop(Tr_ANDINT, left.exp, right.exp), returnTy);
+                        else if (a->u.binop.op == A_XOR)
+                            res = Expty(Tr_CBinop(Tr_XORINT, left.exp, right.exp), returnTy);
+                        else
+                            res = Expty(Tr_CBinop(Tr_ORINT, left.exp, right.exp), returnTy);
                     }
-                    return Expty(NULL, left.ty);
+                    else
+                    {
+                        if (a->u.binop.op == A_AND)
+                            res = Expty(Tr_Binop(Tr_ANDINT, left.exp, right.exp), returnTy);
+                        else if (a->u.binop.op == A_XOR)
+                            res = Expty(Tr_Binop(Tr_XORINT, left.exp, right.exp), returnTy);
+                        else
+                            res = Expty(Tr_Binop(Tr_ORINT, left.exp, right.exp), returnTy);
+                    }
+                    break;
                 }
-                case A_OR : {
-                    if (left.ty->kind != right.ty->kind){
-                        printError(a->pos, "Left and right type should be the same");
+                case A_LOGAND : case A_LOGOR:
+                {
+                    if (!Ty_isScalarTy(left.ty) || !Ty_isScalarTy(right.ty)){
+                        EM_error(a->pos, "inconsistent type to bitwise op");
+                        break;
                     }
-                    if (left.ty->kind != Ty_int){
-                        printError(a->pos, "Only int can operate or");
+                    returnTy = Ty_logicTy(left.ty, right.ty);
+                    if (Ty_isBasicCTy(returnTy))
+                    {
+                        if (a->u.binop.op == A_LOGAND)
+                            res = Expty(Tr_CBinop(Tr_LOGANDINT, left.exp, right.exp), returnTy);
+                        else
+                            res = Expty(Tr_CBinop(Tr_LOGORINT, left.exp, right.exp), returnTy);
                     }
-                    return Expty(NULL, left.ty);
+                    else
+                    {
+                        if (a->u.binop.op == A_LOGAND)
+                            res = Expty(Tr_Binop(Tr_LOGANDINT, left.exp, right.exp), returnTy);
+                        else
+                            res = Expty(Tr_Binop(Tr_LOGORINT, left.exp, right.exp), returnTy);
+                    }
+                    break;
                 }
-                case A_LOGAND : {
-                    
-                }
+                default:
+                    assert(0);
             }
             break;
         }
-        case A_threeop_exp : {
+        
+        case A_threeop_exp : //todo
+        {
             break;
         }
 
-        case A_assign_exp : {
+        case A_assign_exp : 
+        {
+            switch(a->u.assign.op)
+            {
+                case A_ASSIGN:
+                {
+                    struct expty src = transExp(level, linkenv, nameenv, a->u.assign.src);
+                    struct expty dst = transExp(level, linkenv, nameenv, a->u.assign.dst);
+                    if (!Ty_canAssignTy(dst.ty, src.ty))
+                    {
+                        EM_error(a->pos, "type inconsistent when assign");
+                        break;
+                    }
+                    if (!Ty_isMLTy(dst.ty))
+                    {
+                        EM_error(a->pos, "can only assign to modifiable lval");
+                        break;
+                    }
+                    res = Expty(Tr_assignExp(dst.exp, src.exp), dst.ty);//todo RVAL
+                    break;
+                }
+                default://todo
+                    assert(0);
+            }
             break;
         }
-        case A_seq_exp : {
-            transExp(a->u.seq.expr);
-            return transExp(a->u.seq.next);
+        case A_seq_exp : 
+        {
+            struct expty expty1 = transExp(level, linkenv, nameenv, a->u.seq.expr);
+            struct expty expty2 = transExp(level, linkenv, nameenv, a->u.seq.next);
+            res = Expty(Tr_seqExp(expty1.exp, expty2.exp), expty2.ty);
             break;
         }
-
+        default:
+            assert(0);
     }
+    return res;
 }
-
-struct expty transSpec(S_table venv, S_table tenv, A_spec a);
-struct expty transType(S_table venv, S_table, tenv, A_type a);
-struct expty transPointer(S_table venv, S_table tenv, A_pointer a);
-struct expty transParam(S_table venv, S_table tenv, A_param a);
-struct expty transDec(S_table venv, S_table tenv, A_dec a);
-struct expty transDeclaration(S_table venv, S_table tenv, A_declaration a);
-struct expty transTypeName(S_table venv, S_table tenv, A_type_name a);
-struct expty transDesignator(S_table venv, S_table tenv, A_designator a);
-struct expty transInit(S_table venv, S_table tenv, A_init a);
-struct expty transStat(S_table venv, S_table tenv, A_stat a);
-struct expty transDef(S_table venv, S_table tenv, A_def a);
-*/

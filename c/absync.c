@@ -123,6 +123,7 @@ A_2(init, seq, A_init, init, A_init, next);
 A_2(init, enumtype, S_symbol, id, A_exp, const_exp);
 A_2(init, designation, A_designator, designator, A_init, init);
 
+A_1(stat, block, A_stat);
 A_1(stat, exp, A_exp);
 A_1(stat, dec, A_declaration);
 A_2(stat, seq, A_stat, stat, A_stat, next);

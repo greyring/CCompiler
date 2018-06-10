@@ -267,6 +267,7 @@ void TA_init(A_init in){
 void TA_stat(A_stat in){
     dinc;
     switch(in->kind){
+        TA_n1(block, stat, stat);
         TA_n1(exp, stat, exp);
         TA_n1(dec, stat, declaration);
         TA_2(seq, stat, stat, stat, stat, next);

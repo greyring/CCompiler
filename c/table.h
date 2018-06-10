@@ -5,6 +5,14 @@
 typedef struct binder_ *binder;
 typedef struct TAB_table_ *TAB_table;
 
+struct binder_
+{
+    void *key;
+    void *value;
+    binder next;
+    void *prevtop;
+};
+
 struct TAB_table_
 {
     binder table[TABSIZE];

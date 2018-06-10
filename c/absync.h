@@ -346,6 +346,7 @@ struct A_stat_
 {
     A_pos pos;
     enum{
+        A_block_stat,
         A_exp_stat,
         A_dec_stat,
         A_seq_stat,
@@ -364,6 +365,7 @@ struct A_stat_
         A_returnstat_stat
     }kind;
     union{
+        A_stat block;
         A_exp exp;
         A_declaration dec;
         struct{
@@ -491,6 +493,7 @@ A_init _A_enumtype_init(A_pos, S_symbol, A_exp);
 A_init _A_designation_init(A_pos, A_designator, A_init);
 
 
+A_stat _A_block_stat(A_pos, A_stat);
 A_stat _A_exp_stat(A_pos, A_exp);
 A_stat _A_dec_stat(A_pos, A_declaration);
 A_stat _A_seq_stat(A_pos, A_stat, A_stat);

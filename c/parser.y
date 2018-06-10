@@ -373,7 +373,7 @@ labeled_statement:
     | KEY_DEFAULT COLON_MARK statement                    {$$ = _A_defaultstat_stat(charPos, $3);}
     ;
 compound_statement:
-      LBRACE block_item_list RBRACE     {$$ = $2;}
+      LBRACE block_item_list RBRACE     {$$ = _A_block_stat(charPos, $2);}
     | LBRACE RBRACE                     {;}
     ;
 block_item_list:

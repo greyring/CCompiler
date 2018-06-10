@@ -3,14 +3,6 @@
 #include <stdlib.h>
 #include <assert.h>
 
-struct binder_
-{
-    void *key;
-    void *value;
-    binder next;
-    void *prevtop;
-};
-
 static binder Binder(void *key, void *value, binder next, void *prevtop)
 {
     binder b = checked_malloc(sizeof(*b));

@@ -24,7 +24,7 @@ E_linkage E_Linkage(void)
 
 E_namespace E_BeginScope(S_scope scope, E_namespace space)
 {
-    space->lenv = S_beginScope(scope, space->lenv);
+    //space->lenv = S_beginScope(scope, space->lenv);
     space->tenv = S_beginScope(scope, space->tenv);
     space->venv = S_beginScope(scope, space->venv);
     space->menv = S_beginScope(scope, space->menv);
@@ -48,12 +48,33 @@ E_enventry E_VarEntry(Tr_access access, Ty_ty ty){
     return e;
 }
 
-/*
-E_enventry E_FunEntry(Ty_tyList formals, Ty_ty result){
+E_enventry E_FuncEntry(Ty_ty functy, Tr_level level)
+{
     E_enventry e = checked_malloc(sizeof(*e));
-    e->kind = E_funEntry;
-    e->u.fun.formals = formals;
-    e->u.fun.result = result;
+    e->kind = E_funcEntry;
+    e->u.func.functy = functy;
+    e->u.func.level = level;
     return e;
 }
-*/
+
+E_enventry E_LabelEntry(Temp_label label, int complete)
+{
+    E_enventry e = checked_malloc(sizeof(*e));
+    e->kind = E_labelEntry;
+    e->u.label.label = label;
+    e->u.label.complete = complete;
+    return e;
+}
+
+S_symbol E_checkLabel(S_table lenv)
+{
+    if (!lenv) return NULL;
+    binder b = lenv->table->top;
+    while(b)
+    {
+        if (((E_enventry)(b->value))->u.label.complete == 0);
+            return b->key;
+        b = b->next;
+    }
+    return NULL;
+}
