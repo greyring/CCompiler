@@ -7,6 +7,7 @@ typedef struct C_stmListList_ *C_stmListList;
 struct C_block { C_stmListList stmLists; Temp_label label;};
 struct C_stmListList_ { T_stmList head; C_stmListList tail;};
 
+//分成stm的集合
 T_stmList C_linearize(T_stm stm);
         /* From an arbitrary Tree statement, produce a list of cleaned trees
 	   satisfying the following properties:
@@ -14,6 +15,7 @@ T_stmList C_linearize(T_stm stm);
 	      2.  The parent of every CALL is an EXP(..) or a MOVE(TEMP t,..)
         */
 
+//生成一个基本块
 struct C_block C_basicBlocks(T_stmList stmList);
         /* basicBlocks : Tree.stm list -> (Tree.stm list list * Tree.label)
 	       From a list of cleaned trees, produce a list of
@@ -27,6 +29,7 @@ struct C_block C_basicBlocks(T_stmList stmList);
            upon exit.
         */
 
+//将基本块加入块环境
 T_stmList C_traceSchedule(struct C_block b);
          /* traceSchedule : Tree.stm list list * Tree.label -> Tree.stm list
             From a list of basic blocks satisfying properties 1-6,
