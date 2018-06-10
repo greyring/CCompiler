@@ -233,6 +233,7 @@ struct C_block C_basicBlocks(T_stmList stmList)
 static S_table block_env;
 static struct C_block global_block;
 
+//找到一个stmList中的倒数第二个stm
 static T_stmList getLast(T_stmList list)
 {
   T_stmList last = list;
@@ -281,6 +282,7 @@ static void trace(T_stmList list)
 
 /* get the next block from the list of stmLists, using only those that have
  * not been traced yet */
+//找到第一个在块环境中存在的块，开始trace()
 static T_stmList getNext()
 {
   if (!global_block.stmLists)
@@ -308,6 +310,7 @@ static T_stmList getNext()
             as possible are eliminated by falling through into T.LABEL(lab).
          */
 //把cjump后面跟上false标号
+//对其他模块的接口
 T_stmList C_traceSchedule(struct C_block b)
 { C_stmListList sList;
   block_env = S_empty();
