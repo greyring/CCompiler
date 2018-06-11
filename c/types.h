@@ -155,16 +155,16 @@ unsigned long Ty_isLONG(Ty_spec spec);
 unsigned long Ty_isSimpleType(Ty_spec spec);
 
 //test type
-int Ty_isVoidTy(Ty_ty ty);//todo
-int Ty_isBasicCTy(Ty_ty ty);//todo
-int Ty_isIntTy(Ty_ty ty);//todo
-int Ty_isRealTy(Ty_ty ty);//todo
-int Ty_isArithTy(Ty_ty ty);//todo
-int Ty_isScalarTy(Ty_ty ty);//todo
-int Ty_isArrayTy(Ty_ty ty);//todo
-int Ty_isPointerTy(Ty_ty ty);//todo
-int Ty_isFuncTy(Ty_ty ty);//todo
-int Ty_isSUTy(Ty_ty ty);//todo
+int Ty_isVoidTy(Ty_ty ty);
+int Ty_isBasicCTy(Ty_ty ty);
+int Ty_isIntTy(Ty_ty ty);
+int Ty_isRealTy(Ty_ty ty);
+int Ty_isArithTy(Ty_ty ty);
+int Ty_isScalarTy(Ty_ty ty);
+int Ty_isArrayTy(Ty_ty ty);
+int Ty_isPointerTy(Ty_ty ty);
+int Ty_isFuncTy(Ty_ty ty);
+int Ty_isSUTy(Ty_ty ty);
 int Ty_isMLTy(Ty_ty ty);//modifieable lval
 
 int Ty_isCompleteTy(Ty_ty ty);//todo
@@ -191,7 +191,7 @@ Ty_ty Ty_actualTy(Ty_ty ty);
 
 //semant type test
 //actual ty
-int Ty_areSameTy(Ty_ty ty1, Ty_ty ty2);//todo
+int Ty_areSameTy(Ty_ty ty1, Ty_ty ty2);
 int Ty_canAssignTy(Ty_ty dst, Ty_ty src);//todo
 int Ty_canGetPointer(Ty_ty ty);//todo
 

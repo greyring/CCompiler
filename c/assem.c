@@ -8,7 +8,7 @@
 #include <string.h> /* for strcpy */
 #include "util.h"
 #include "symbol.h"
-#include "absyn.h"
+#include "absync.h"
 #include "temp.h"
 #include "tree.h"
 #include "assem.h"

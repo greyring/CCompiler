@@ -98,6 +98,116 @@ int Ty_isIntCTy(Ty_ty ty)
     return 0;
 }
 
+int Ty_isVoidTy(Ty_ty ty){
+    if (ty == NULL)
+        return 0;
+    ty = Ty_actualTy(ty);
+    if (ty == Ty_Void())
+        return 1;
+    else
+        return 0;
+}
+
+int Ty_isBasicCTy(Ty_ty ty){
+    if (ty == NULL)
+        return 0;
+    ty = Ty_actualTy(ty);
+    if (ty == Ty_Char() || ty == Ty_UChar() || ty == Ty_Short()
+        || ty == Ty_UShort() || ty == Ty_Int() || ty == Ty_UInt()
+        || ty == Ty_Long() || ty == Ty_ULong() || ty == Ty_LLong()
+        || ty == Ty_ULLong() || ty == Ty_Float() || ty == Ty_Double()
+        || ty == Ty_LDouble())
+        return 1;
+    else
+        return 0;
+}
+
+int Ty_isIntTy(Ty_ty ty){
+    if (ty == NULL)
+        return 0;
+    ty = Ty_actualTy(ty);
+    if (ty == Ty_Int() ||ty == Ty_UInt() || ty == Ty_UChar() 
+        || ty == Ty_Char() || ty == Ty_Short() || ty == Ty_UShort())
+        return 1;
+    else
+        return 0;
+}
+
+int Ty_isRealTy(Ty_ty ty){
+    if (ty == NULL)
+        return 0;
+    ty = Ty_actualTy(ty);
+    if (Ty_isIntTy(ty) == 1 || ty == Ty_Float() || ty == Ty_Double()
+        || ty == Ty_LDouble())
+        return 1;
+    else
+        return 0;
+}
+
+int Ty_isArithTy(Ty_ty ty){
+    if (ty == NULL)
+        return 0;
+    ty = Ty_actualTy(ty);
+    if (Ty_isIntTy(ty) == 1 || Ty_isRealTy(ty) == 1)
+        return 1;
+    else
+        return 0;
+}
+
+int Ty_isScalarTy(Ty_ty ty){
+    if (ty == NULL)
+        return 0;
+    ty = Ty_actualTy(ty);
+    if (Ty_isArithTy(ty) == 1 || Ty_isPointerTy(ty) == 1)
+        return 1;
+    else
+        return 0;
+}
+
+int Ty_isArrayTy(Ty_ty ty){
+    if (ty == NULL)
+        return 0;
+    ty = Ty_actualTy(ty);
+    if (ty->kind == Ty_arrayTy)
+        return 1;
+    else
+        return 0;
+}
+
+int Ty_isPointerTy(Ty_ty ty){
+    if (ty == NULL)
+        return 0;
+    ty = Ty_actualTy(ty);
+    if (ty->kind == Ty_pointerTy)
+        return 1;
+    else
+        return 0;
+}
+
+int Ty_isFuncTy(Ty_ty ty){
+    if (ty == NULL)
+        return 0;
+    ty = Ty_actualTy(ty);
+    if (ty->kind == Ty_funcTy)
+        return 1;
+    else
+        return 0;
+}
+
+int Ty_isSUTy(Ty_ty ty){
+    if (ty == NULL)
+        return 0;
+    ty = Ty_actualTy(ty);
+    if (ty->kind == Ty_structTy || ty->kind == Ty_unionTy)
+        return 1;
+    else
+        return 0;
+}
+
+
+
+
+
 //translate spec of basic type into basic Ty
 static Ty_ty Ty_BasicTy(Ty_spec spec)
 {

@@ -117,9 +117,11 @@ T_inst T_inst_L(Temp_label label);
 T_inst T_inst_N(Temp_temp res);
 
 
+T_instList T_instListTail(T_instList t);
 void T_instListAppend(T_instList f, T_instList s);
 T_instList T_InstList(T_inst i);
 
+T_instListList T_instListListTail(T_instListList t);
 void T_instListListAppend(T_instListList f, T_instListList s);
 T_instListList T_InstListList(T_instList i);
 

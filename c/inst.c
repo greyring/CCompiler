@@ -80,8 +80,21 @@ T_inst T_inst_N(Temp_temp res){
     t->res = res;
 }
 
+T_instList T_instListTail(T_instList t){
+    while (t->tail != NULL) t = t->tail;
+    return t;
+}
+
 void T_instListAppend(T_instList f, T_instList s){
-    f->tail = s;
+    if (f->head == NULL && f->tail == NULL){
+        f->head = s->head;
+        f->tail = s->tail;
+    }
+    else{
+        T_instList tl = T_instListTail(f);
+        tl->tail = s;
+    }
+    
 }
 
 T_instList T_InstList(T_inst i){
@@ -91,12 +104,21 @@ T_instList T_InstList(T_inst i){
     return t;
 }
 
+T_instListList T_instListListTail(T_instListList t){
+    while (t->tail != NULL) t = t->tail;
+    return t;
+}
+
 void T_instListListAppend(T_instListList f, T_instListList s){
     if (f->head == NULL && f->tail == NULL){
         f->head = s->head;
         f->tail = s->tail;
     }
-    else f->tail = s;
+    else{
+        T_instListList tl;
+        tl = T_instListListTail(f);
+        tl -> tail = s;
+    }
 }
 
 T_instListList T_InstListList(T_instList i){
@@ -167,6 +189,7 @@ T_instList T_makeExp(T_exp t){
             return T_InstList(T_inst_C(Temp_newtemp(), t->u.CONST));
         }
         case T_CALL:{//unfinished
+            T_instList cl = T_InstList(NULL);
             break;
         }
     }
@@ -178,8 +201,8 @@ T_instList T_makeStm(T_stm t){
         case T_LABEL:{
             return T_instList(T_inst_L(t->u.LABEL));
         }
-        case T_JUMP:{//?????
-            return NULL;
+        case T_JUMP:{
+            return T_instList(T_inst_J(J_J, t->u.JUMP.jumps->head));
         }
         case T_CJUMP:{
             T_instList leftT = T_makeExp(t->u.CJUMP.left);
