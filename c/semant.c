@@ -399,9 +399,9 @@ static int _transEDeclar(Tr_level level, E_linkage linkenv, E_namespace nameenv,
                         EM_error(init->u.enumtype.const_exp->pos, "not a int constant");
                     else
                     {
-                        e = E_VarEntry(Tr_ConstAccess(expty.exp), Ty_Int());
+                        e = E_VarEntry(Tr_ConstAccess(Tr_getIntConst(expty.exp)), Ty_Int());
                         S_enter(nameenv->venv, init->u.enumtype.id, e);
-                        now = Tr_getIntConst(expty.exp) + 1;
+                        now = Tr_getIntConst(Tr_getIntConst(expty.exp)) + 1;
                     }
                 }
                 else
@@ -810,6 +810,14 @@ static Tr_exp transStat(Tr_level level, E_linkage linkenv, E_namespace nameenv, 
     Tr_exp res = NULL;
     switch(stat->kind)
     {
+        case A_block_stat:
+        {
+            E_BeginScope(S_BLOCK, nameenv);
+            S_beginScope(S_NOLINK, linkenv->nolink);
+            res = transStat(level, linkenv, nameenv, contl, breakl, stat->u.block);
+            S_endScope(linkenv->lenv);
+            E_EndScope(nameenv);
+        }
         case A_seq_stat:
         {
             Tr_exp exp1, exp2;
@@ -946,8 +954,6 @@ static Tr_exp transDef(Tr_level level, E_linkage linkenv, E_namespace nameenv, A
             Tr_access access = NULL;
             S_symbol labelName = NULL;
             Tr_exp stats = NULL;
-            E_BeginScope(S_BLOCK, nameenv);
-            S_beginScope(S_NOLINK, linkenv->nolink);
             S_beginScope(S_FUNC, nameenv->lenv);
             for(temp = dec->type->u.funcTy.params.head; temp; temp = temp->next)
             {
@@ -961,8 +967,6 @@ static Tr_exp transDef(Tr_level level, E_linkage linkenv, E_namespace nameenv, A
             if ((labelName = E_checkLabel(nameenv->lenv)))
                 EM_error(0, "Label %s not found", labelName->name);//todo pos
             S_endScope(nameenv->lenv);
-            S_endScope(linkenv->nolink);
-            E_EndScope(nameenv);
             break;
         }
         case A_simple_dec:

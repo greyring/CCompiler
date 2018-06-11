@@ -84,7 +84,7 @@ struct A_exp_
         int intexp;//todo
         double floatexp;
         char charexp;
-        char* strexp;
+        string strexp;
         struct{
             A_exp expr;
             A_exp subscript;
@@ -431,7 +431,7 @@ A_exp _A_id_exp(A_pos, S_symbol);
 A_exp _A_intexp_exp(A_pos, int);
 A_exp _A_floatexp_exp(A_pos, double);
 A_exp _A_charexp_exp(A_pos, char);
-A_exp _A_strexp_exp(A_pos, char*);
+A_exp _A_strexp_exp(A_pos, string);
 A_exp _A_subscript_exp(A_pos, A_exp, A_exp);
 A_exp _A_funccall_exp(A_pos, A_exp, A_exp);
 A_exp _A_dot_exp(A_pos, A_exp, S_symbol);

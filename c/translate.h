@@ -5,6 +5,7 @@
 #include "frame.h"
 typedef struct Ty_ty_ *Ty_ty;
 
+typedef struct patchList_ *patchList;
 typedef void *Tr_exp;
 typedef struct Tr_expList_ Tr_expList;
 typedef struct Tr_level_ *Tr_level;
@@ -22,6 +23,33 @@ typedef enum
     Tr_LOGANDINT, Tr_LOGORINT,
 }Tr_binop;
 
+struct patchList_
+{
+    Temp_label *head;
+    patchList tail;
+};
+
+struct Cx
+{
+    patchList t;
+    patchList f;
+    T_stm stm;
+};
+
+struct Tr_exp_
+{
+    enum
+    {
+        Tr_ex, Tr_nx, Tr_cx
+    }kind;
+    union
+    {
+        T_exp ex;
+        T_stm nx;
+        struct Cx Cx;
+    }u;
+}
+
 struct Tr_expList_
 {
     Tr_exp head;
@@ -34,17 +62,15 @@ struct Tr_access_
     Tr_level level;
     enum
     {
-        Tr_Reg,
-        Tr_Mem,
-        Tr_Const
+        Tr_Frame,
+        Tr_Const,//for enum
+        Tr_Extern,//for extern
     }kind;
     union
     {
-        struct
-        {
-            F_access access;
-            Tr_exp init;
-        }Reg, Mem;
+        F_access Frame;
+        int Const;
+        S_symbol Extern;
     }u;
 
     Tr_access next;
@@ -64,16 +90,17 @@ struct Tr_level_
     Tr_accessList vars;
 };
 
+Tr_level Tr_Outermost(void);
+Tr_level Tr_newLevel(Tr_level parent, Temp_label name, Ty_ty functy);
+
 Tr_exp Tr_IntConst(int i);
 int Tr_getIntConst(Tr_exp intConst);
 
-Tr_access Tr_StrAccess(char* s);//alloc
+Tr_access Tr_StrAccess(string s);//alloc
 Tr_access Tr_GlobalAccess(Ty_ty type);//alloc
-Tr_access Tr_ConstAccess(Tr_exp exp);//alloc
+Tr_access Tr_ConstAccess(int i);//alloc
 Tr_access Tr_ExternAccess(S_symbol sym);//alloc
 Tr_access Tr_StackAccess(Tr_level level, Ty_ty type);//alloc
-
-
 
 Tr_exp Tr_simpleVar(Tr_level level, Tr_access access);
 Tr_exp Tr_simpleFunc(Tr_level level);
@@ -116,10 +143,5 @@ Tr_exp Tr_jumpStmt(Temp_label label);
 Tr_exp Tr_labelStmt(Temp_label label);
 
 void Tr_addFuncStat(Tr_level level, Tr_exp stat);
-
-
-
-Tr_level Tr_newLevel(Tr_level parent, Temp_label name, Ty_ty functy);
-Tr_level Tr_endLevel(Tr_level level);
 
 #endif

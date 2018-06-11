@@ -62,7 +62,7 @@ A_1(exp, id, S_symbol);
 A_1(exp, intexp, int);
 A_1(exp, floatexp, double);
 A_1(exp, charexp, char);
-A_1(exp, strexp, char*);
+A_1(exp, strexp, string);
 A_2(exp, subscript, A_exp, expr, A_exp, subscript);
 A_2(exp, funccall, A_exp, expr, A_exp, args);
 A_2(exp, dot, A_exp, expr, S_symbol, id);
