@@ -317,4 +317,6 @@ struct interference interference_graph(struct Live_graph livegraph){
 
         nodelist=nodelist->tail;
     }
+
+    return inter;
 }
