@@ -31,6 +31,7 @@ struct G_node_ {
 
   void *info; // 指向一条指令T_inst
   Temp_tempList def, use; //def & use集合
+  Temp_tempList in, out; // in & out集合
 };
 
 G_graph G_Graph(void)
@@ -67,6 +68,14 @@ G_node G_Node(G_graph g, void *info)
 
  n->succs=NULL;
  n->preds=NULL;
+ /*
+ n->in = NULL;
+ n->out = NULL;
+ */
+//这里必须malloc，不能和use&def使用同一个指针
+n->in = (Temp_tempList)checked_malloc(sizeof(*Temp_tempList));
+n->out = (Temp_tempList)checked_malloc(sizeof(*Temp_tempList));
+
  n->info=info;
  return n;
 }
