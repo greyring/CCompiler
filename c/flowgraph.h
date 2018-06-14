@@ -3,6 +3,7 @@
  */
 #include "graph.h"
 #include "temp.h"
+#include "inst.h"
 
 
 Temp_tempList FG_def(G_node n);

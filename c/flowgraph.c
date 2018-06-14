@@ -1,7 +1,7 @@
-#include "inst.h"
+
 #include "flowgraph.h"
 
-G_table table = G_empty(void);
+static G_table table = G_empty();
 
 //返回一个G_node的def集合templist
 Temp_tempList FG_def(G_node n){
@@ -146,9 +146,11 @@ void preproc(T_instList il){
         inst = il->head; //读取一条指令
         if(inst->kind==L_INST){
             //如果是label指令
-            G_node node = G_Node(NULL, il);
+            G_node node = G_Node(NULL, inst);
             node->def = FG_def(node);
             node->use = FG_use(node);
+            node->in = NULL;
+            node->out = NULL;
             G_nodeList nodelist = G_NodeList(node, NULL);
             G_enter(table, il->u.l.label, nodelist);//放入table
         }
@@ -158,6 +160,10 @@ void preproc(T_instList il){
 
 
 G_graph FG_AssemFlowGraph(T_instList il){
+    //先预处理，把所有label存进table
+    preproc(il);
+
+
     //生成一个空图
     G_graph G = G_Graph(void);
 
