@@ -192,14 +192,14 @@ Ty_ty Ty_actualTy(Ty_ty ty);
 //semant type test
 //actual ty
 int Ty_areSameTy(Ty_ty ty1, Ty_ty ty2);
-int Ty_canAssignTy(Ty_ty dst, Ty_ty src);//todo
-int Ty_canGetPointer(Ty_ty ty);//todo
+int Ty_canAssignTy(Ty_ty dst, Ty_ty src);
+int Ty_canGetPointer(Ty_ty ty);
 
-Ty_ty Ty_muldivTy(Ty_ty ty1, Ty_ty ty2);//todo
-Ty_ty Ty_modTy(Ty_ty ty1, Ty_ty ty2);//todo
-Ty_ty Ty_plusminusTy(Ty_ty ty1, Ty_ty ty2);//todo
-Ty_ty Ty_lrshiftTy(Ty_ty ty1, Ty_ty ty2);//todo
-Ty_ty Ty_bitwiseTy(Ty_ty ty1, Ty_ty ty2);//todo
-Ty_ty Ty_logicTy(Ty_ty ty1, Ty_ty ty2);//todo
+Ty_ty Ty_muldivTy(Ty_ty ty1, Ty_ty ty2);
+Ty_ty Ty_modTy(Ty_ty ty1, Ty_ty ty2);
+Ty_ty Ty_plusminusTy(Ty_ty ty1, Ty_ty ty2);
+Ty_ty Ty_lrshiftTy(Ty_ty ty1, Ty_ty ty2);
+Ty_ty Ty_bitwiseTy(Ty_ty ty1, Ty_ty ty2);
+Ty_ty Ty_logicTy(Ty_ty ty1, Ty_ty ty2);
 
 #endif

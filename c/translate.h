@@ -108,6 +108,7 @@ Tr_access Tr_ExternAccess(S_symbol sym);//alloc
 Tr_access Tr_StackAccess(Tr_level level, Ty_ty type);//alloc
 
 Tr_exp Tr_simpleVar(Tr_level level, Tr_access access);
+Tr_exp Tr_simpleFunc(Tr_level level);
 Tr_exp Tr_IntConst(int i);
 int Tr_getIntConst(Tr_exp intConst);
 Tr_exp Tr_CharConst(char c);

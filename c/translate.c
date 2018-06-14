@@ -11,15 +11,90 @@ static Tr_exp Tr_Ex(T_exp ex);
 static Tr_exp Tr_Nx(T_stm nx);
 static Tr_exp Tr_Cx(patchList t, patchList f, T_stm stm);
 static Tr_accessList makeFormalAccessList(Tr_level level);
-static Tr_access Tr_frame_access(F_access access);
+static Tr_access Tr_frame_access(Tr_level level, F_access access);
 static Tr_accessList Tr_AccessList(Tr_accessList list, Tr_access access);
 static T_expList Tr_toExpList(Tr_exp expList);
 static T_exp unEx(Tr_exp exp);
 static T_stm unNx(Tr_exp exp);
-static struct Cx unCx(Tr_exp e);
+static struct Cx unCx(Tr_exp exp);
 static patchList PatchList(Temp_label *head, patchList tail);
 static void doPatch(patchList pList, Temp_label label);//link a patchlist to label
 static patchList joinPatch(patchList fList, patchList sList);//link two patchlists
+
+
+
+static T_exp unEx(Tr_exp e)
+{
+    switch (e->kind)
+    {
+        case Tr_ex:
+            return e->u.ex;
+        case Tr_nx:
+            return T_Eseq(e->u.nx, T_Const(0));
+        case Tr_cx:
+        {
+            Temp_temp r = Temp_newtemp();
+			Temp_label t = Temp_newlabel(), f = Temp_newlabel();
+			doPatch(e->u.cx.t, t);
+			doPatch(e->u.cx.f, f);
+			return T_Eseq(T_Move(T_Temp(r), T_Const(1)),
+				T_Eseq(e->u.cx.stm,
+					T_Eseq(T_Label(f), 
+						T_Eseq(T_Move(T_Temp(r), T_Const(0)),
+							T_Eseq(T_Label(t), T_Temp(r))))));            
+        }
+        default:
+            assert(0);
+    }
+    return NULL;
+}
+
+static T_stm unNx(Tr_exp e)
+{
+    switch(e->kind)
+    {
+        case Tr_ex:
+            return T_Exp(e->u.ex);
+        case Tr_nx:
+            return e->u.nx;
+        case Tr_cx:
+        {
+            Temp_temp r = Temp_newtemp();
+			Temp_label t = Temp_newlabel(), f = Temp_newlabel();
+			doPatch(e->u.cx.t, t);
+			doPatch(e->u.cx.f, f);
+			return T_Exp(T_Eseq(T_Move(T_Temp(r), T_Const(1)),
+				T_Eseq(e->u.cx.stm,
+					T_Eseq(T_Label(f), 
+						T_Eseq(T_Move(T_Temp(r), T_Const(0)),
+							T_Eseq(T_Label(t), T_Temp(r)))))));
+        }
+        default:
+            assert(0);
+    }
+    return NULL;
+}
+
+static struct Cx unCx(Tr_exp e)
+{
+    switch(e->kind)
+    {
+        case Tr_ex:
+        {
+            struct Cx cx;
+            cx.stm = T_Cjump(T_eq, e->u.ex, T_Const(0), NULL, NULL);
+            cx.t = PatchList(&(cx.stm->u.CJUMP.f), NULL);
+            cx.f = PatchList(&(cx.stm->u.CJUMP.t), NULL);
+            return cx;
+        }
+        case Tr_nx:
+            assert(0);
+        case Tr_cx:
+            return e->u.cx;
+        default:
+            assert(0);
+    }
+}
 
 
 static patchList PatchList(Temp_label *head, patchList tail)
@@ -88,6 +163,19 @@ static Tr_accessList Tr_AccessList(Tr_accessList list, Tr_access access)
     return list;
 }
 
+static Tr_accessList makeFormalAccessList(Tr_level level)
+{
+    Tr_accessList list;
+    F_access Faccess = F_formals(level->frame).head;
+    list.head = list.tail = NULL;
+
+	for (; Faccess; Faccess = Faccess->next) {
+		Tr_access access = Tr_frame_access(level, Faccess);
+		list = Tr_AccessList(list, access);
+	}
+	return list;
+}
+
 static Tr_level Tr_outermost = NULL;
 Tr_level Tr_Outermost(void)
 {
@@ -106,9 +194,10 @@ Tr_level Tr_newLevel(Tr_level parent, Temp_label name, Ty_ty functy)
 	return level;
 }
 
-static Tr_access Tr_frame_access(F_access access)
+static Tr_access Tr_frame_access(Tr_level level, F_access access)
 {
     Tr_access p = checked_malloc(sizeof(*p));
+    p->level = level;
     p->kind = Tr_Frame;
     p->u.Frame = access;
     p->next = NULL;
@@ -117,9 +206,10 @@ static Tr_access Tr_frame_access(F_access access)
 
 Tr_access Tr_StrAccess(string s)
 {
-    return Tr_frame_access(F_allocStr(Tr_outermost->frame, s));
+    Tr_access p = Tr_frame_access(Tr_Outermost(), F_allocStr(Tr_Outermost()->frame, s));
+    Tr_Outermost()->formals = Tr_AccessList(Tr_Outermost()->formals, p);
+    return p;
 }
-
 
 Tr_access Tr_GlobalAccess(Ty_ty type)
 {
@@ -129,7 +219,7 @@ Tr_access Tr_GlobalAccess(Ty_ty type)
         EM_error(0, "global variable cannot be variable size");
         return NULL;
     }
-    p = Tr_frame_access(F_allocLocal(Tr_Outermost()->frame, 1, Tr_getIntConst(type->size.exp)));
+    p = Tr_frame_access(Tr_Outermost(), F_allocLocal(Tr_Outermost()->frame, 1, Tr_getIntConst(type->size.exp)));
     Tr_Outermost()->formals = Tr_AccessList(Tr_Outermost()->formals, p);
     return p;
 }
@@ -137,6 +227,7 @@ Tr_access Tr_GlobalAccess(Ty_ty type)
 Tr_access Tr_ConstAccess(int i)
 {
     Tr_access p = checked_malloc(sizeof *p);
+    p->level = Tr_Outermost();
     p->kind = Tr_Const;
     p->u.Const = i;
     p->next = NULL;
@@ -147,6 +238,7 @@ Tr_access Tr_ConstAccess(int i)
 Tr_access Tr_ExternAccess(S_symbol sym)
 {
     Tr_access p = checked_malloc(sizeof *p);
+    p->level = Tr_Outermost();
     p->kind = Tr_Extern;
     p->u.Extern = sym;
     p->next = NULL;
@@ -162,8 +254,8 @@ Tr_access Tr_StackAccess(Tr_level level, Ty_ty type)
         EM_error(0, "variable size alloc is not supported");
         return NULL;
     }
-    p = Tr_frame_access(F_allocLocal(level->frame, 1, Tr_getIntConst(type->size.exp)));
-    Tr_Outermost()->formals = Tr_AccessList(Tr_Outermost()->formals, p);
+    p = Tr_frame_access(level, F_allocLocal(level->frame, 1, Tr_getIntConst(type->size.exp)));
+    Tr_Outermost()->formals = Tr_AccessList(level->formals, p);
     return p;
 }
 
@@ -200,6 +292,11 @@ Tr_exp Tr_simpleVar(Tr_level level, Tr_access access)
         return NULL;
     }
     assert(0);
+}
+
+Tr_exp Tr_simpleFunc(Tr_level level)
+{
+    return Tr_Nx(T_Label(level->name));
 }
 
 Tr_exp Tr_IntConst(int i)
@@ -495,7 +592,7 @@ Tr_exp Tr_Relop(Tr_relop op, Tr_exp exp1, Tr_exp exp2)
 
 Tr_exp Tr_assignExp(Tr_exp var, Tr_exp exp)
 {
-    return Tr_Nx(T_Move(unEx(var), unEx(exp)));
+    return Tr_Ex(T_Eseq(T_Move(unEx(var), unEx(exp)), unEx(exp)));
 }
 
 Tr_exp Tr_seqExp(Tr_exp exp1, Tr_exp exp2)

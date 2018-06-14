@@ -9,6 +9,7 @@ static struct Ty_expty Ty_Expty(Tr_exp exp, Ty_ty ty)
     struct Ty_expty t;
     t.exp = exp;
     t.ty = ty;
+    return t;
 }
 
 #define SPEC(type) \
@@ -46,10 +47,11 @@ Ty_ty Ty_V##NAME (unsigned long spec)\
     p->kind = Ty_basicTy;\
     p->complete = 0;\
     p->u.basicTy = Ty_##NAME();\
+    return p;\
 }
 
 BASIC(Null);
-BASIC(Void)
+BASIC(Void);
 BASIC(Char); BASIC(UChar);
 BASIC(Short); BASIC(UShort);
 BASIC(Int); BASIC(UInt);
@@ -58,6 +60,24 @@ BASIC(LLong); BASIC(ULLong);
 BASIC(Float);
 BASIC(Double); BASIC(LDouble);
 #undef BASIC
+
+static int rank(Ty_ty basicTy)
+{
+    if (basicTy == Ty_Char() || basicTy->u.basicTy == Ty_Char()) return 1;
+    if (basicTy == Ty_UChar() || basicTy->u.basicTy == Ty_UChar()) return 2;
+    if (basicTy == Ty_Short() || basicTy->u.basicTy == Ty_Short()) return 3;
+    if (basicTy == Ty_UShort() || basicTy->u.basicTy == Ty_UShort()) return 4;
+    if (basicTy == Ty_Int() || basicTy->u.basicTy == Ty_Int()) return 5;
+    if (basicTy == Ty_UInt() || basicTy->u.basicTy == Ty_UInt()) return 6;
+    if (basicTy == Ty_Long() || basicTy->u.basicTy == Ty_Long()) return 7;
+    if (basicTy == Ty_ULong() || basicTy->u.basicTy == Ty_ULong()) return 8;
+    if (basicTy == Ty_LLong() || basicTy->u.basicTy == Ty_LLong()) return 9;
+    if (basicTy == Ty_ULLong() || basicTy->u.basicTy == Ty_ULLong()) return 10;
+    if (basicTy == Ty_Float() || basicTy->u.basicTy == Ty_Float()) return 11;
+    if (basicTy == Ty_Double() || basicTy->u.basicTy == Ty_Double()) return 12;
+    if (basicTy == Ty_LDouble() || basicTy->u.basicTy == Ty_LDouble()) return 13;
+    assert(0);
+}
 
 //test a spec
 unsigned long Ty_isLONG(Ty_spec spec)
@@ -85,6 +105,8 @@ int Ty_isIntTy(Ty_ty ty)
             return Ty_isIntTy(ty->u.nameTy);
         case Ty_basicTy:
             return Ty_isIntTy(ty->u.basicTy);
+        default:
+            return 0;
     }
     return 0;
 }
@@ -443,13 +465,13 @@ void Ty_calcASC(Ty_ty type)
                 type->complete = 1;
                 if (Ty_isIntCTy(type->u.arrayTy.constExp.ty) && 
                     Ty_isIntCTy(type->u.arrayTy.ty->size.ty))
-                    type->size = Ty_Expty(Tr_mulConst(type->u.arrayTy.constExp.exp, 
+                    type->size = Ty_Expty(Tr_CBinop(Tr_MULINT, type->u.arrayTy.constExp.exp, 
                                                          type->u.arrayTy.ty->size.exp),
                                           Ty_Int());
                 else
                 {
                     if (Ty_isIntTy(type->u.arrayTy.constExp.ty))
-                        type->size = Ty_Expty(Tr_mulInt(type->u.arrayTy.constExp.exp,
+                        type->size = Ty_Expty(Tr_Binop(Tr_MULINT, type->u.arrayTy.constExp.exp,
                                                         type->u.arrayTy.ty->size.exp),
                                               Ty_VInt(0));
                     else
@@ -595,7 +617,7 @@ Ty_sFieldList Ty_SFieldList(Ty_sFieldList head, Ty_sField tail)
 
 Ty_ty Ty_actualTy(Ty_ty ty)
 {
-    if (ty->kind == Ty_forwardTy)
+    if (ty->kind == Ty_forwardTy && ty->complete)
         return Ty_actualTy(ty->u.forwardTy);
     else if (ty->kind == Ty_nameTy)
         return Ty_actualTy(ty->u.nameTy);
@@ -674,7 +696,141 @@ int Ty_areSameTy(Ty_ty ty1, Ty_ty ty2)
     assert(0);
 }
 
+//not test const and rval
 int Ty_canAssignTy(Ty_ty dst, Ty_ty src)
 {
-    //todo
+    if (dst == NULL || src == NULL)
+        return 0;
+
+    dst = Ty_actualTy(dst);
+    src = Ty_actualTy(src);
+    if (dst == src)
+        return 1;
+    switch (dst->kind)
+    {
+        case Ty_forwardTy:
+            assert(0);
+        case Ty_nameTy:
+            assert(0);
+        case Ty_basicTy:
+            if (src->kind != Ty_basicTy)
+                return 0;
+            return rank(dst) >= rank(src);
+        case Ty_structTy:
+            return 0;
+        case Ty_unionTy:
+            return 0;
+        case Ty_bitTy:
+            return 0;//not support
+        case Ty_pointerTy:
+            if (src->kind != Ty_pointerTy)
+                return 0;
+            return Ty_areSameTy(src->u.pointerTy.ty, dst->u.pointerTy.ty);
+        case Ty_arrayTy:
+            return 0;
+        case Ty_funcTy:
+            return 0;
+    }
+    assert(0);
+}
+
+int Ty_canGetPointer(Ty_ty ty)
+{
+    if (ty == NULL)
+        return 0;
+
+    ty = Ty_actualTy(ty);
+    if (ty)
+    switch (ty->kind)
+    {
+        case Ty_forwardTy: case Ty_nameTy:
+            assert(0);
+        case Ty_basicTy:
+            if (Ty_isBasicCTy(ty)) return 0;
+            return 1;
+        case Ty_structTy: case Ty_unionTy:
+            return 1;
+        case Ty_bitTy:
+            return 0;//not support
+        case Ty_pointerTy:
+            return 1;
+        case Ty_arrayTy://todo
+            return 0;
+        case Ty_funcTy://todo
+            return 0;
+    }
+    assert(0);   
+}
+
+static Ty_ty autoConvert(Ty_ty ty1, Ty_ty ty2)
+{
+    // if (basicTy == Ty_Char() || basicTy->u.basicTy == Ty_Char()) return 1;
+    // if (basicTy == Ty_UChar() || basicTy->u.basicTy == Ty_UChar()) return 2;
+    // if (basicTy == Ty_Short() || basicTy->u.basicTy == Ty_Short()) return 3;
+    // if (basicTy == Ty_UShort() || basicTy->u.basicTy == Ty_UShort()) return 4;
+    // if (basicTy == Ty_Int() || basicTy->u.basicTy == Ty_Int()) return 5;
+    // if (basicTy == Ty_UInt() || basicTy->u.basicTy == Ty_UInt()) return 6;
+    // if (basicTy == Ty_Long() || basicTy->u.basicTy == Ty_Long()) return 7;
+    // if (basicTy == Ty_ULong() || basicTy->u.basicTy == Ty_ULong()) return 8;
+    // if (basicTy == Ty_LLong() || basicTy->u.basicTy == Ty_LLong()) return 9;
+    // if (basicTy == Ty_ULLong() || basicTy->u.basicTy == Ty_ULLong()) return 10;
+    // if (basicTy == Ty_Float() || basicTy->u.basicTy == Ty_Float()) return 11;
+    // if (basicTy == Ty_Double() || basicTy->u.basicTy == Ty_Double()) return 12;
+    // if (basicTy == Ty_LDouble() || basicTy->u.basicTy == Ty_LDouble()) return 13;
+    int a, b, c;
+    a = rank(ty1);
+    b = rank(ty2);
+    c = a>b ? a : b;
+    switch (c)
+    {
+        case 1: case 2: case 3: case 4: case 5:
+            return Ty_VInt(Ty_RVAL);
+        case 6:
+            return Ty_VUInt(Ty_RVAL);
+        case 7:
+            return Ty_VLong(Ty_RVAL);
+        case 8:
+            return Ty_VULong(Ty_RVAL);
+        case 9:
+            return Ty_VLLong(Ty_RVAL);
+        case 10:
+            return Ty_VULLong(Ty_RVAL);
+        case 11: case 12:
+            return Ty_VDouble(Ty_RVAL);
+        case 13:
+            return Ty_VLDouble(Ty_RVAL);
+        default:
+            assert(0);
+    }
+    assert(0);
+}
+
+Ty_ty Ty_muldivTy(Ty_ty ty1, Ty_ty ty2)
+{
+    return autoConvert(ty1, ty2);
+}
+
+Ty_ty Ty_modTy(Ty_ty ty1, Ty_ty ty2)
+{
+    return autoConvert(ty1, ty2);
+}
+
+Ty_ty Ty_plusminusTy(Ty_ty ty1, Ty_ty ty2)
+{
+    return autoConvert(ty1, ty2);
+}
+
+Ty_ty Ty_lrshiftTy(Ty_ty ty1, Ty_ty ty2)
+{
+    return autoConvert(ty1, ty2);
+}
+
+Ty_ty Ty_bitwiseTy(Ty_ty ty1, Ty_ty ty2)
+{
+    return autoConvert(ty1, ty2);
+}
+
+Ty_ty Ty_logicTy(Ty_ty ty1, Ty_ty ty2)
+{
+    return autoConvert(ty1, ty2);
 }

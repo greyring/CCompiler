@@ -401,12 +401,12 @@ static int _transEDeclar(Tr_level level, E_linkage linkenv, E_namespace nameenv,
                     {
                         e = E_VarEntry(Tr_ConstAccess(Tr_getIntConst(expty.exp)), Ty_Int());
                         S_enter(nameenv->venv, init->u.enumtype.id, e);
-                        now = Tr_getIntConst(Tr_getIntConst(expty.exp)) + 1;
+                        now = Tr_getIntConst(expty.exp) + 1;
                     }
                 }
                 else
                 {
-                    e = E_VarEntry(Tr_ConstAccess(Tr_IntConst(now)), Ty_Int());
+                    e = E_VarEntry(Tr_ConstAccess(now), Ty_Int());
                     S_enter(nameenv->venv, init->u.enumtype.id, e);
                     now = now + 1;
                 }
@@ -815,7 +815,7 @@ static Tr_exp transStat(Tr_level level, E_linkage linkenv, E_namespace nameenv, 
             E_BeginScope(S_BLOCK, nameenv);
             S_beginScope(S_NOLINK, linkenv->nolink);
             res = transStat(level, linkenv, nameenv, contl, breakl, stat->u.block);
-            S_endScope(linkenv->lenv);
+            S_endScope(linkenv->nolink);
             E_EndScope(nameenv);
         }
         case A_seq_stat:
@@ -942,12 +942,12 @@ static Tr_exp transDef(Tr_level level, E_linkage linkenv, E_namespace nameenv, A
                     break;
                 }
                 newlevel = Tr_newLevel(level, Temp_newlabel(), dec->type);
-                entry->u.func.level = level;
+                entry->u.func.level = newlevel;
             }
             else
             {
                 newlevel = Tr_newLevel(level, Temp_newlabel(), dec->type);
-                entry = E_FuncEntry(dec->type, level);
+                entry = E_FuncEntry(dec->type, newlevel);
             }
 
             Ty_field temp = NULL;
@@ -1201,9 +1201,9 @@ struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_
                     break;
                 }
                 if (a->kind == A_postpp_exp)
-                    res = Expty(Tr_postppPointerExp(expty.exp, expty.ty->pointerTy.ty->size.exp), expty.ty);
+                    res = Expty(Tr_postppPointerExp(expty.exp, expty.ty->u.pointerTy.ty->size.exp), expty.ty);
                 else
-                    res = Expty(Tr_postmmPointerExp(expty.exp, expty.ty->pointerTy.ty->size.exp), expty.ty);
+                    res = Expty(Tr_postmmPointerExp(expty.exp, expty.ty->u.pointerTy.ty->size.exp), expty.ty);
             }
             else
             {
@@ -1241,9 +1241,9 @@ struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_
                     break;
                 }
                 if (a->kind == A_prepp_exp)
-                    res = Expty(Tr_preppPointerExp(expty.exp, expty.ty->pointerTy.ty->size.exp), expty.ty);
+                    res = Expty(Tr_preppPointerExp(expty.exp, expty.ty->u.pointerTy.ty->size.exp), expty.ty);
                 else
-                    res = Expty(Tr_premmPointerExp(expty.exp, expty.ty->pointerTy.ty->size.exp), expty.ty);
+                    res = Expty(Tr_premmPointerExp(expty.exp, expty.ty->u.pointerTy.ty->size.exp), expty.ty);
             }
             else
             {
@@ -1261,6 +1261,11 @@ struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_
                 case A_AND:
                 {
                     if (!Ty_canGetPointer(expty.ty))
+                    {
+                        EM_error(a->pos, "can not get address of this type");
+                        break;
+                    }
+                    else if (Ty_isRVAL(expty.ty->specs))
                     {
                         EM_error(a->pos, "can not get address of rval");
                         break;
@@ -1473,9 +1478,9 @@ struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_
                     )
                     {
                         returnTy = Ty_VInt(Ty_RVAL);
-                        if ((Ty_isIntTy(left.ty) || Ty_isPointerTy(left.ty) &&
+                        if ((Ty_isIntTy(left.ty) || Ty_isPointerTy(left.ty)) &&
                             (Ty_isIntTy(right.ty) || Ty_isPointerTy(right.ty))
-                        ))
+                        )
                         {
                             if (Ty_isBasicCTy(returnTy))
                             {
