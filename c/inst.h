@@ -41,9 +41,9 @@ typedef enum{
     W_SW
 }wInst;
 
-typedef T_inst_* T_inst;
-typedef T_instList_* T_instList;
-typedef T_instListList_* T_instListList;
+typedef struct T_inst_* T_inst;
+typedef struct T_instList_* T_instList;
+typedef struct T_instListList_* T_instListList;
 
 struct T_inst_{
     enum{
