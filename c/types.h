@@ -167,7 +167,7 @@ int Ty_isFuncTy(Ty_ty ty);
 int Ty_isSUTy(Ty_ty ty);
 int Ty_isMLTy(Ty_ty ty);//modifieable lval
 
-int Ty_isCompleteTy(Ty_ty ty);//todo
+int Ty_isCompleteTy(Ty_ty ty);
 
 
 void Ty_calcASC(Ty_ty type);

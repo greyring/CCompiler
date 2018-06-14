@@ -1022,13 +1022,13 @@ struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_
             break;
         }
         case A_intexp_exp :
-            res = Expty(Tr_intExp(a->u.intexp), Ty_Int());
+            res = Expty(Tr_IntConst(a->u.intexp), Ty_Int());
             break;
         case A_floatexp_exp :
-            res = Expty(Tr_doubleExp(a->u.floatexp), Ty_Double());
+            res = Expty(Tr_DoubleConst(a->u.floatexp), Ty_Double());
             break;
         case A_charexp_exp :
-            res = Expty(Tr_charExp(a->u.charexp), Ty_Char());
+            res = Expty(Tr_CharConst(a->u.charexp), Ty_Char());
             break;
         case A_strexp_exp :
             res = Expty(Tr_strExp(a->u.strexp), Ty_PointerTy(Ty_Char(), Ty_CONST));
@@ -1201,9 +1201,9 @@ struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_
                     break;
                 }
                 if (a->kind == A_postpp_exp)
-                    res = Expty(Tr_postppPointerExp(expty.exp), expty.ty);
+                    res = Expty(Tr_postppPointerExp(expty.exp, expty.ty->pointerTy.ty->size.exp), expty.ty);
                 else
-                    res = Expty(Tr_postmmIntExp(expty.exp), expty.ty);
+                    res = Expty(Tr_postmmPointerExp(expty.exp, expty.ty->pointerTy.ty->size.exp), expty.ty);
             }
             else
             {
@@ -1241,9 +1241,9 @@ struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_
                     break;
                 }
                 if (a->kind == A_prepp_exp)
-                    res = Expty(Tr_preppPointerExp(expty.exp), expty.ty);
+                    res = Expty(Tr_preppPointerExp(expty.exp, expty.ty->pointerTy.ty->size.exp), expty.ty);
                 else
-                    res = Expty(Tr_premmIntExp(expty.exp), expty.ty);
+                    res = Expty(Tr_premmPointerExp(expty.exp, expty.ty->pointerTy.ty->size.exp), expty.ty);
             }
             else
             {
@@ -1293,13 +1293,17 @@ struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_
                         break;
                     }
                     if (Ty_isBasicCTy(expty.ty))
-                        res = Expty(Tr_mulConst(expty.exp, Tr_IntConst(-1)), expty.ty);
+                        res = Expty(Tr_CBinop(Tr_MULINT, expty.exp, Tr_IntConst(-1)), expty.ty);
                     else
                     {
                         if (Ty_isIntTy(expty.ty))
-                            res = Expty(Tr_mulInt(expty.exp, Tr_IntConst(-1)), expty.ty);
+                            res = Expty(Tr_Binop(Tr_MULINT, expty.exp, Tr_IntConst(-1)), expty.ty);
                         else
-                            res = Expty(Tr_mulDouble(expty.exp, Tr_IntConst(-1)), expty.ty);
+                        {
+                            EM_error(a->pos,"double is not supported");
+                            break;
+                            //res = Expty(Tr_mulDouble(expty.exp, Tr_IntConst(-1)), expty.ty);
+                        }
                     }
                     break;
                 }
@@ -1476,24 +1480,24 @@ struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_
                             if (Ty_isBasicCTy(returnTy))
                             {
                                 if (a->u.binop.op == A_GT)
-                                    res = Expty(Tr_CBinop(Tr_GTINT, left.exp, right.exp), returnTy);
+                                    res = Expty(Tr_CRelop(Tr_GTINT, left.exp, right.exp), returnTy);
                                 if (a->u.binop.op == A_LT)
-                                    res = Expty(Tr_CBinop(Tr_LTINT, left.exp, right.exp), returnTy);
+                                    res = Expty(Tr_CRelop(Tr_LTINT, left.exp, right.exp), returnTy);
                                 if (a->u.binop.op == A_GTE)
-                                    res = Expty(Tr_CBinop(Tr_GTEINT, left.exp, right.exp), returnTy);
+                                    res = Expty(Tr_CRelop(Tr_GTEINT, left.exp, right.exp), returnTy);
                                 if (a->u.binop.op == A_LTE)
-                                    res = Expty(Tr_CBinop(Tr_LTEINT, left.exp, right.exp), returnTy);
+                                    res = Expty(Tr_CRelop(Tr_LTEINT, left.exp, right.exp), returnTy);
                             }
                             else
                             {
                                 if (a->u.binop.op == A_GT)
-                                    res = Expty(Tr_Binop(Tr_GTINT, left.exp, right.exp), returnTy);
+                                    res = Expty(Tr_Relop(Tr_GTINT, left.exp, right.exp), returnTy);
                                 if (a->u.binop.op == A_LT)
-                                    res = Expty(Tr_Binop(Tr_LTINT, left.exp, right.exp), returnTy);
+                                    res = Expty(Tr_Relop(Tr_LTINT, left.exp, right.exp), returnTy);
                                 if (a->u.binop.op == A_GTE)
-                                    res = Expty(Tr_Binop(Tr_GTEINT, left.exp, right.exp), returnTy);
+                                    res = Expty(Tr_Relop(Tr_GTEINT, left.exp, right.exp), returnTy);
                                 if (a->u.binop.op == A_LTE)
-                                    res = Expty(Tr_Binop(Tr_LTEINT, left.exp, right.exp), returnTy);
+                                    res = Expty(Tr_Relop(Tr_LTEINT, left.exp, right.exp), returnTy);
                             }
                         }
                         else
@@ -1527,16 +1531,16 @@ struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_
                             if (Ty_isBasicCTy(left.ty) && Ty_isBasicCTy(right.ty))
                             {
                                 if (a->u.binop.op == A_EQ)
-                                    res = Expty(Tr_CBinop(Tr_EQINT, left.exp, right.exp), returnTy);
+                                    res = Expty(Tr_CRelop(Tr_EQINT, left.exp, right.exp), returnTy);
                                 if (a->u.binop.op == A_NEQ)
-                                    res = Expty(Tr_CBinop(Tr_NEQINT, left.exp, right.exp), returnTy);
+                                    res = Expty(Tr_CRelop(Tr_NEQINT, left.exp, right.exp), returnTy);
                             }
                             else
                             {
                                 if (a->u.binop.op == A_GT)
-                                    res = Expty(Tr_Binop(Tr_EQINT, left.exp, right.exp), returnTy);
+                                    res = Expty(Tr_Relop(Tr_EQINT, left.exp, right.exp), returnTy);
                                 if (a->u.binop.op == A_LT)
-                                    res = Expty(Tr_Binop(Tr_NEQINT, left.exp, right.exp), returnTy);
+                                    res = Expty(Tr_Relop(Tr_NEQINT, left.exp, right.exp), returnTy);
                             }
                         }
                     }
@@ -1584,16 +1588,16 @@ struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_
                     if (Ty_isBasicCTy(returnTy))
                     {
                         if (a->u.binop.op == A_LOGAND)
-                            res = Expty(Tr_CBinop(Tr_LOGANDINT, left.exp, right.exp), returnTy);
+                            res = Expty(Tr_CRelop(Tr_LOGANDINT, left.exp, right.exp), returnTy);
                         else
-                            res = Expty(Tr_CBinop(Tr_LOGORINT, left.exp, right.exp), returnTy);
+                            res = Expty(Tr_CRelop(Tr_LOGORINT, left.exp, right.exp), returnTy);
                     }
                     else
                     {
                         if (a->u.binop.op == A_LOGAND)
-                            res = Expty(Tr_Binop(Tr_LOGANDINT, left.exp, right.exp), returnTy);
+                            res = Expty(Tr_Relop(Tr_LOGANDINT, left.exp, right.exp), returnTy);
                         else
-                            res = Expty(Tr_Binop(Tr_LOGORINT, left.exp, right.exp), returnTy);
+                            res = Expty(Tr_Relop(Tr_LOGORINT, left.exp, right.exp), returnTy);
                     }
                     break;
                 }

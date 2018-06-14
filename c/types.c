@@ -35,7 +35,7 @@ SPEC(RVAL);//can not get address
 #define BASIC(NAME) \
 struct Ty_ty_ Ty_##NAME##_ =\
 {.kind = Ty_basicTy, \
- .specs = Ty_CONST | Ty_RVAL;\
+ .specs = Ty_CONST | Ty_RVAL,\
  .complete = 0, \
  .u.basicTy = NULL, \
  };\
@@ -122,17 +122,6 @@ int Ty_isBasicCTy(Ty_ty ty){
         return 0;
 }
 
-int Ty_isIntTy(Ty_ty ty){
-    if (ty == NULL)
-        return 0;
-    ty = Ty_actualTy(ty);
-    if (ty == Ty_Int() ||ty == Ty_UInt() || ty == Ty_UChar() 
-        || ty == Ty_Char() || ty == Ty_Short() || ty == Ty_UShort())
-        return 1;
-    else
-        return 0;
-}
-
 int Ty_isRealTy(Ty_ty ty){
     if (ty == NULL)
         return 0;
@@ -204,7 +193,24 @@ int Ty_isSUTy(Ty_ty ty){
         return 0;
 }
 
+//modifieable lval
+int Ty_isMLTy(Ty_ty ty)
+{
+    if (ty == NULL)
+        return 0;
+    ty = Ty_actualTy(ty);
+    if (Ty_isCONST(ty->specs) || Ty_isRVAL(ty->specs))
+        return 0;
+    return 1;
+}
 
+int Ty_isCompleteTy(Ty_ty ty)
+{
+    if (ty == NULL)
+        return 0;
+    Ty_calcASC(ty);
+    return ty->complete;
+}
 
 
 
@@ -437,7 +443,7 @@ void Ty_calcASC(Ty_ty type)
                 type->complete = 1;
                 if (Ty_isIntCTy(type->u.arrayTy.constExp.ty) && 
                     Ty_isIntCTy(type->u.arrayTy.ty->size.ty))
-                    type->size = Ty_Expty(Tr_mulIntConst(type->u.arrayTy.constExp.exp, 
+                    type->size = Ty_Expty(Tr_mulConst(type->u.arrayTy.constExp.exp, 
                                                          type->u.arrayTy.ty->size.exp),
                                           Ty_Int());
                 else

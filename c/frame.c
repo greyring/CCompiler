@@ -53,23 +53,9 @@ F_escapeList F_EscapeList(int escape, F_escapeList next)
     return p;
 }
 
-F_access F_allocLocal(F_frame f, int escape)
-{
-    if (escape)
-    {
-        F_access access;
-        access = InFrame(f->frame_size);
-        f->frame_size += 4;
-        f->locals = F_AccessList(access, f->locals);
-        return access;
-    }
-    else
-        return InReg(Temp_newtemp());
-}
-
 F_frame F_newFrame(Temp_label name, F_escapeList formals)
 {
-
+    return NULL;
 }
 
 
