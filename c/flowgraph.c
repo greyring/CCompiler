@@ -33,7 +33,7 @@ Temp_tempList FG_def(G_node n){
             return NULL;
         }
         case W_INST:{
-            //返回W型指令的def集合
+            //返回LW型指令的def集合
             if(inst->u.w.type==W_LW){
                 Temp_temp temp = inst->u.w.rt;
                 Temp_tempList templist = Temp_TempList(temp, NULL);
