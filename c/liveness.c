@@ -242,7 +242,7 @@ struct interference interference_graph(struct Live_graph livegraph){
 	Temp_temp out;
 
 	struct interference inter;//构建一个新的冲突图，并初始化
-	inter.n = -1;
+	inter.n = 0;
 	inter.templist = NULL;
 	for (i = 0; i<50; i++) {
 		for (j = 0; j<50; j++) {
@@ -268,6 +268,7 @@ struct interference interference_graph(struct Live_graph livegraph){
 				printf("kind:%d\n", I_INST);
 				if (!isInList(inter.templist, nodelist->head->def->head)) {
 					inter.templist = addTemp(nodelist->head->def->head, inter.templist);
+					inter.n++;
 				}
 				index1 = getIndex(inter.templist, nodelist->head->def->head);
 				printf("index1: %d\n", index1);
@@ -276,6 +277,7 @@ struct interference interference_graph(struct Live_graph livegraph){
 				while (outlist != NULL) {
 					if (!isInList(inter.templist, outlist->head)) {
 						inter.templist=addTemp(outlist->head, inter.templist);
+						inter.n++;
 					}
 					index2 = getIndex(inter.templist, outlist->head);
 					printf("index2: %d\n", index2);
@@ -296,6 +298,7 @@ struct interference interference_graph(struct Live_graph livegraph){
 
 				if (!isInList(inter.templist, nodelist->head->def->head)) {
 					inter.templist = addTemp(nodelist->head->def->head, inter.templist);
+					inter.n++;
 				}
 				index1 = getIndex(inter.templist, nodelist->head->def->head);
 
@@ -303,6 +306,7 @@ struct interference interference_graph(struct Live_graph livegraph){
 				while (outlist != NULL) {
 					if (!isInList(inter.templist, outlist->head)) {
 						inter.templist=addTemp(outlist->head, inter.templist);
+						inter.n++;
 					}
 					index2 = getIndex(inter.templist, outlist->head);
 
@@ -320,6 +324,7 @@ struct interference interference_graph(struct Live_graph livegraph){
 
 				if (!isInList(inter.templist, nodelist->head->def->head)) {
 					inter.templist = addTemp(nodelist->head->def->head, inter.templist);
+					inter.n++;
 				}
 				index1 = getIndex(inter.templist, nodelist->head->def->head);
 				printf("index1: %d\n", index1);
@@ -332,6 +337,7 @@ struct interference interference_graph(struct Live_graph livegraph){
 					}
 					if (!isInList(inter.templist, outlist->head)) {
 						inter.templist=addTemp(outlist->head, inter.templist);
+						inter.n++;
 					}
 					index2 = getIndex(inter.templist, outlist->head);
 					printf("index2: %d\n", index2);
@@ -354,6 +360,7 @@ struct interference interference_graph(struct Live_graph livegraph){
 					if (!isInList(inter.templist, nodelist->head->def->head)) {
 						printf("冲突图加入一个变量\n");
 						inter.templist=addTemp(nodelist->head->def->head, inter.templist);
+						inter.n++;
 					}
 				}
 				
@@ -370,6 +377,7 @@ struct interference interference_graph(struct Live_graph livegraph){
 					}*/
 					if (!isInList(inter.templist, outlist->head)) {
 						inter.templist=addTemp(outlist->head, inter.templist);
+						inter.n++;
 					}
 					index2 = getIndex(inter.templist, outlist->head);
 					printf("index2: %d\n", index2);
