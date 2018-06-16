@@ -12,7 +12,17 @@ Temp_tempList FG_def(G_node n){
     templist->tail=NULL;
     */
 
-    T_inst inst = (T_inst)info;//读取node中的指令
+    T_inst inst = (T_inst)(n->info);//读取node中的指令
+
+    const int I_INST = inst->I_INST;
+	const int T_INST = inst->T_INST;
+	const int O_INST = inst->O_INST;
+	const int J_INST = inst->J_INST;
+	const int W_INST = inst->W_INST;
+	const int M_INST = inst->M_INST;
+	const int C_INST = inst->C_INST;
+	const int L_INST = inst->L_INST;
+
     switch(inst->kind){
         case I_INST:{
             //返回I型指令的def集合
@@ -68,6 +78,19 @@ Temp_tempList FG_def(G_node n){
 //返回一个G_node的use集合templist
 Temp_tempList FG_use(G_node n){
     T_inst inst = (T_inst)info;//读取node中的指令
+
+    
+	const int I_INST = inst->I_INST;
+	const int T_INST = inst->T_INST;
+	const int O_INST = inst->O_INST;
+	const int J_INST = inst->J_INST;
+	const int W_INST = inst->W_INST;
+	const int M_INST = inst->M_INST;
+	const int C_INST = inst->C_INST;
+	const int L_INST = inst->L_INST;
+
+
+
     switch(inst->kind){
         case I_INST:{
             //I型指令的use集合
@@ -142,16 +165,24 @@ bool FG_isMove(G_node n){
 //提前遍历一遍指令集合，将所有label包装成nodelist，放入table待查
 void preproc(T_instList il){
     T_inst inst;
+    const int I_INST = inst->I_INST;
+	const int T_INST = inst->T_INST;
+	const int O_INST = inst->O_INST;
+	const int J_INST = inst->J_INST;
+	const int W_INST = inst->W_INST;
+	const int M_INST = inst->M_INST;
+	const int C_INST = inst->C_INST;
+	const int L_INST = inst->L_INST;
     while(il != NULL){
         inst = il->head; //读取一条指令
         if(inst->kind==L_INST){
             //如果是label指令
-            G_node node = G_Node(NULL, inst);
+            G_node node = G_node(NULL, inst);
             node->def = FG_def(node);
             node->use = FG_use(node);
             node->in = NULL;
             node->out = NULL;
-            G_nodeList nodelist = G_NodeList(node, NULL);
+            G_nodeList nodelist = G_nodeList(node, NULL);
             G_enter(table, il->u.l.label, nodelist);//放入table
         }
         il = il->tail;
@@ -162,6 +193,14 @@ void preproc(T_instList il){
 G_graph FG_AssemFlowGraph(T_instList il){
     //先预处理，把所有label存进table
     preproc(il);
+    const int I_INST = inst->I_INST;
+	const int T_INST = inst->T_INST;
+	const int O_INST = inst->O_INST;
+	const int J_INST = inst->J_INST;
+	const int W_INST = inst->W_INST;
+	const int M_INST = inst->M_INST;
+	const int C_INST = inst->C_INST;
+	const int L_INST = inst->L_INST;
 
 
     //生成一个空图
@@ -173,8 +212,8 @@ G_graph FG_AssemFlowGraph(T_instList il){
         G_node node = NULL;
         if(il->head->kind != L_INST){
             //label指令需要特殊处理，查表获得，不能新建
-            node = G_Node(G, il->head);
-            nodelist = G_NodeList(node, NULL);
+            node = G_node(G, il->head);
+            nodelist = G_nodeList(node, NULL);
             node->def = FG_def(node);
             node->use = FG_use(node);
         }
