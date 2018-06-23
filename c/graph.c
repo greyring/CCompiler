@@ -68,14 +68,17 @@ G_node G_Node(G_graph g, void *info)
 
  n->succs=NULL;
  n->preds=NULL;
- /*
+ 
  n->in = NULL;
  n->out = NULL;
- */
-//这里必须malloc，不能和use&def使用同一个指针
+ 
+/*
 n->in = (Temp_tempList)checked_malloc(sizeof(*Temp_tempList));
+n->in->head = NULL;
+n->in->tail = NULL;
 n->out = (Temp_tempList)checked_malloc(sizeof(*Temp_tempList));
-
+n->out->head = NULL;
+n->out->tail = NULL;*/
  n->info=info;
  return n;
 }
