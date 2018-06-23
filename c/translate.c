@@ -21,7 +21,7 @@ static patchList PatchList(Temp_label *head, patchList tail);
 static void doPatch(patchList pList, Temp_label label);//link a patchlist to label
 static patchList joinPatch(patchList fList, patchList sList);//link two patchlists
 
-
+static F_fragList FRAGLIST;
 
 static T_exp unEx(Tr_exp e)
 {
@@ -154,6 +154,15 @@ static Tr_exp Tr_Cx(patchList t, patchList f, T_stm stm)
     return p;
 }
 
+Tr_expList Tr_ExpList(Tr_expList list, Tr_exp exp)
+{
+    if (list.head == NULL)
+        list.head = list.tail = exp;
+    else
+        list.tail = list.tail->next = exp;
+    return list;
+}
+
 static Tr_accessList Tr_AccessList(Tr_accessList list, Tr_access access)
 {
     if (list.head == NULL)
@@ -189,7 +198,15 @@ Tr_level Tr_newLevel(Tr_level parent, Temp_label name, Ty_ty functy)
     Tr_level level = checked_malloc(sizeof(*level));
 	level->parent = parent;
 	level->name = name;
-	level->frame = F_newFrame(name, functy->u.funcTy.params);
+    level->functy = functy;
+    if (functy)
+        level->frame = F_newFrame(name, functy->u.funcTy.params);
+    else
+    {
+        Ty_fieldList temp;
+        temp.head = temp.tail = NULL;
+        level->frame = F_newFrame(name, temp);
+    }
 	level->formals = makeFormalAccessList(level);
 	return level;
 }
@@ -255,7 +272,7 @@ Tr_access Tr_StackAccess(Tr_level level, Ty_ty type)
         return NULL;
     }
     p = Tr_frame_access(level, F_allocLocal(level->frame, 1, Tr_getIntConst(type->size.exp)));
-    Tr_Outermost()->formals = Tr_AccessList(level->formals, p);
+    level->formals = Tr_AccessList(level->formals, p);
     return p;
 }
 
@@ -592,10 +609,157 @@ Tr_exp Tr_Relop(Tr_relop op, Tr_exp exp1, Tr_exp exp2)
 
 Tr_exp Tr_assignExp(Tr_exp var, Tr_exp exp)
 {
-    return Tr_Ex(T_Eseq(T_Move(unEx(var), unEx(exp)), unEx(exp)));
+    Temp_temp t = Temp_newtemp();
+    return Tr_Ex(T_Eseq(T_Seq(T_Move(T_Temp(t), unEx(exp)), T_Move(unEx(var), T_Temp(t))), T_Temp(t)));
 }
 
 Tr_exp Tr_seqExp(Tr_exp exp1, Tr_exp exp2)
 {
     return Tr_Ex(T_Eseq(unNx(exp1), unEx(exp2)));
 }
+
+Tr_exp Tr_seqStat(Tr_exp exp1, Tr_exp exp2)
+{
+    if (exp1 == NULL && exp2 == NULL)
+        return NULL;
+    if (exp1 == NULL)
+        return exp2;
+    if (exp2 == NULL)
+        return exp1;
+    return Tr_Nx(T_Seq(unNx(exp1), unNx(exp2)));
+}
+
+Tr_exp Tr_jumpStat(Temp_label label)
+{
+    return Tr_Nx(T_Jump(T_Name(label), Temp_LabelList(label, NULL)));
+}
+
+Tr_exp Tr_labelStat(Temp_label label)
+{
+    return Tr_Ex(T_Name(label));
+}
+
+Tr_exp Tr_iftStat(Tr_exp cond, Tr_exp then)
+{
+    struct Cx condCx = unCx(cond);
+    Temp_label t = Temp_newlabel();
+    Temp_label f = Temp_newlabel();
+    T_stm res = NULL;
+    
+    doPatch(condCx.t, t);
+    doPatch(condCx.f, f);
+    res = T_Seq(T_Label(t), unNx(then));
+    res = T_Seq(res, T_Label(f));
+    res = T_Seq(condCx.stm, res);
+    return Tr_Nx(res);
+}
+
+Tr_exp Tr_iftfStat(Tr_exp cond, Tr_exp then, Tr_exp els)
+{
+    struct Cx condCx = unCx(cond);
+    Temp_label t = Temp_newlabel();
+    Temp_label f = Temp_newlabel();
+    Temp_label end = Temp_newlabel();
+    T_stm thenStm = NULL;
+    T_stm elseStm = NULL;
+    T_stm res = NULL;
+    
+    doPatch(condCx.t, t);
+    doPatch(condCx.f, f);
+    thenStm = T_Jump(T_Name(end), Temp_LabelList(end, NULL));
+    thenStm = T_Seq(unNx(then), thenStm);
+    thenStm = T_Seq(T_Label(t), thenStm);
+    elseStm = T_Jump(T_Name(end), Temp_LabelList(end, NULL));
+    elseStm = T_Seq(unNx(els), elseStm);
+    elseStm = T_Seq(T_Label(f), elseStm);
+    res = T_Seq(thenStm, elseStm);
+    res = T_Seq(res, T_Label(end));
+    res = T_Seq(condCx.stm, res);
+    return Tr_Nx(res);
+}
+
+Tr_exp Tr_whileStat(Temp_label test, Tr_exp cond, Tr_exp body, Temp_label done)
+{
+    Temp_label bodyStart = Temp_newlabel();
+    struct Cx condCx = unCx(cond);
+    T_stm res = NULL;
+
+    doPatch(condCx.t, bodyStart);
+    doPatch(condCx.f, done);
+    res = T_Seq(unNx(body), T_Jump(T_Name(test), Temp_LabelList(test, NULL)));
+    res = T_Seq(T_Label(bodyStart), res);
+    res = T_Seq(condCx.stm, res);
+    res = T_Seq(res, T_Label(done));
+    res = T_Seq(T_Label(test), res);
+    return Tr_Nx(res);
+}
+
+Tr_exp Tr_dowhileStat(Temp_label bodyStart, Tr_exp body, Tr_exp cond, Temp_label done)
+{
+    struct Cx condCx = unCx(cond);
+    T_stm res = NULL;
+
+    doPatch(condCx.t, bodyStart);
+    doPatch(condCx.f, done);
+    res = T_Seq(unNx(body), condCx.stm);
+    res = T_Seq(res, T_Label(done));
+    res = T_Seq(T_Label(bodyStart), res);
+    return Tr_Nx(res);
+}
+
+Tr_exp Tr_forexpcondStat(Tr_exp exp1, Temp_label test, Tr_exp exp2, Tr_exp body, Tr_exp exp3, Temp_label done)
+{
+    Temp_label bodyStart = Temp_newlabel();
+    struct Cx condCx = unCx(exp2);
+    T_stm res = NULL;
+
+    doPatch(condCx.t, bodyStart);
+    doPatch(condCx.f, done);
+    if (exp3)
+        res = T_Seq(unNx(body), unNx(exp3));
+    else
+        res = unNx(body);
+    res = T_Seq(res, T_Jump(T_Name(test), Temp_LabelList(test, NULL)));
+    res = T_Seq(condCx.stm, res);
+    res = T_Seq(T_Label(test), res);
+    res = T_Seq(res, T_Label(done));
+    if (exp1)
+        res = T_Seq(unNx(exp1), res);
+    return Tr_Nx(res);
+}
+
+Tr_exp Tr_forexpStat(Tr_exp exp1, Temp_label test, Tr_exp body, Tr_exp exp3, Temp_label done)
+{
+    T_stm res = NULL;
+    if (exp3)
+        res = T_Seq(unNx(body), unNx(exp3));
+    else
+        res = unNx(body);
+    res = T_Seq(res, T_Jump(T_Name(test), Temp_LabelList(test, NULL)));
+    res = T_Seq(T_Label(test), res);
+    res = T_Seq(res, T_Label(done));
+    if (exp1)
+        res = T_Seq(unNx(exp1), res);
+    return Tr_Nx(res);
+}
+
+Tr_exp Tr_returnStat(Tr_level level, Tr_exp returnExp)
+{
+    T_stm res = NULL;
+    res = T_Move(T_Temp(F_V0()), unEx(returnExp));
+    res = T_Seq(res, T_Jump(T_Name(level->frame->end), Temp_LabelList(level->frame->end, NULL)));
+    return Tr_Nx(res);
+}
+
+void Tr_procEntryExit(Tr_level level, Tr_exp body)
+{
+    //end label of frame is not linked to body
+	F_frag frag = F_ProcFrag(unNx(body), level->frame);
+	FRAGLIST = F_FragList(FRAGLIST, frag);
+}
+
+F_fragList Tr_getResult(void)
+{
+	return FRAGLIST;
+}
+

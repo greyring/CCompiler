@@ -3,6 +3,7 @@
 
 #include "translate.h"
 #include "types.h"
+#include "frame.h"
 
 typedef struct exptyNode_ *exptyNode;//arg
 typedef struct exptyList_ exptyList;//args
@@ -24,5 +25,7 @@ struct exptyList_
     exptyNode head;
     exptyNode tail;
 };
+
+F_fragList SEM_transProg(A_def def);
 
 #endif

@@ -39,6 +39,7 @@ S_symbol _S_symbol(string name)
         if (strcmp(sym->name, name) == 0)
             return sym;
     sym = insert(name, syms);
+    hashtable[index] = sym;
     return sym;
 }
 

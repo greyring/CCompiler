@@ -441,6 +441,7 @@ void Ty_calcASC(Ty_ty type)
             }
             else
             {
+                Ty_calcASC(type->u.basicTy);
                 type->complete = 1;
                 type->size = type->u.basicTy->size;
                 type->align = type->u.basicTy->align;

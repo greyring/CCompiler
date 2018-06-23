@@ -12,7 +12,7 @@ string String(char* s)
 
 void * checked_malloc(size_t size)
 {
-    void * temp = malloc(size);
+    void * temp = calloc(1, size);
     assert(temp);
     return temp;
 }

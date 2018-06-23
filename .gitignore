@@ -7,3 +7,6 @@ y.tab.c
 lex.yy.c
 /.vscode
 CCompiler.rar
+/c/CMakeFiles
+/c/CMakeCache.txt
+/c/cmake_install.cmake

@@ -33,7 +33,7 @@ E_namespace E_BeginScope(S_scope scope, E_namespace space)
 
 E_namespace E_EndScope(E_namespace space)
 {
-    space->lenv = S_endScope(space->lenv);
+    //space->lenv = S_endScope(space->lenv);
     space->tenv = S_endScope(space->tenv);
     space->venv = S_endScope(space->venv);
     space->menv = S_endScope(space->menv);
@@ -72,7 +72,7 @@ S_symbol E_checkLabel(S_table lenv)
     binder b = lenv->table->top;
     while(b)
     {
-        if (((E_enventry)(b->value))->u.label.complete == 0);
+        if (((E_enventry)(b->value))->u.label.complete == 0)
             return b->key;
         b = b->next;
     }

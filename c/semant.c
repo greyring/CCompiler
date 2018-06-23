@@ -282,8 +282,11 @@ static Ty_field _transParam(Tr_level level, E_linkage linkenv, E_namespace namee
 static Ty_fieldList transParam(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_param param)
 {
     Ty_fieldList fieldList;
-    Ty_field tail = checked_malloc(sizeof(*tail));
+    Ty_field tail = NULL;
     fieldList.head = fieldList.tail = NULL;
+    if (param == NULL)
+        return fieldList;
+    tail = checked_malloc(sizeof(*tail));
     switch(param->kind)
     {
         case A_seq_param:
@@ -357,9 +360,11 @@ static Ty_dec _transDec(Tr_level level, E_linkage linkenv, E_namespace nameenv, 
 //trans Declator
 static Ty_decList transDec(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_dec dec)
 {
-    Ty_dec tail = checked_malloc(sizeof(*tail));
     Ty_decList decList;
     decList.head = decList.tail = NULL;
+    if (dec == NULL)
+        return decList;
+    Ty_dec tail = checked_malloc(sizeof(*tail));
     switch(dec->kind)
     {
         case A_seq_dec:
@@ -628,7 +633,7 @@ static Tr_exp transDeclar(Tr_level level, E_linkage linkenv, E_namespace nameenv
             Tr_exp exp1, exp2;
             exp1 = transDeclar(level, linkenv, nameenv, declar->u.seq.declaration);
             exp2 = transDeclar(level, linkenv, nameenv, declar->u.seq.next);
-            res = Tr_seqStmt(exp1, exp2);
+            res = Tr_seqStat(exp1, exp2);
             break;
         }
         case A_simple_declaration:
@@ -640,7 +645,7 @@ static Tr_exp transDeclar(Tr_level level, E_linkage linkenv, E_namespace nameenv
             while(temp)
             {
                 dec = Ty_specdec(spec, temp);
-                if (dec->sym)//if is NULL, do nothing
+                if (!dec->sym)//if is NULL, do nothing
                     goto next;
 
                 if (!dec->type->complete)
@@ -813,17 +818,18 @@ static Tr_exp transStat(Tr_level level, E_linkage linkenv, E_namespace nameenv, 
         case A_block_stat:
         {
             E_BeginScope(S_BLOCK, nameenv);
-            S_beginScope(S_NOLINK, linkenv->nolink);
+            linkenv->nolink = S_beginScope(S_NOLINK, linkenv->nolink);
             res = transStat(level, linkenv, nameenv, contl, breakl, stat->u.block);
-            S_endScope(linkenv->nolink);
+            linkenv->nolink = S_endScope(linkenv->nolink);
             E_EndScope(nameenv);
+            break;
         }
         case A_seq_stat:
         {
             Tr_exp exp1, exp2;
             exp1 = transStat(level, linkenv, nameenv, contl, breakl, stat->u.seq.stat);
             exp2 = transStat(level, linkenv, nameenv, contl, breakl, stat->u.seq.next);
-            res = Tr_seqStmt(exp1, exp2);
+            res = Tr_seqStat(exp1, exp2);
             break;
         }
         case A_exp_stat:
@@ -847,14 +853,14 @@ static Tr_exp transStat(Tr_level level, E_linkage linkenv, E_namespace nameenv, 
                     break;
                 }
 
-                res = Tr_labelStmt(entry->u.label.label);
+                res = Tr_labelStat(entry->u.label.label);
             }
             else
             {
                 Temp_label label = Temp_namedlabel(stat->u.label.id->name);
                 entry = E_LabelEntry(label, 1);
                 S_enter(nameenv->lenv, stat->u.label.id, entry);
-                res = Tr_labelStmt(label);
+                res = Tr_labelStat(label);
             }
             break;
         }
@@ -868,7 +874,7 @@ static Tr_exp transStat(Tr_level level, E_linkage linkenv, E_namespace nameenv, 
                 entry = E_LabelEntry(label, 0);
                 S_enter(nameenv->lenv, stat->u.gotostat, label);
             }
-            res = Tr_jumpStmt(entry->u.label.label);
+            res = Tr_jumpStat(entry->u.label.label);
             break;
         }
         case A_continuestat_stat:
@@ -877,7 +883,7 @@ static Tr_exp transStat(Tr_level level, E_linkage linkenv, E_namespace nameenv, 
                 EM_error(stat->pos, "continue is not in a loop");
                 break;
             }
-            res = Tr_jumpStmt(contl);
+            res = Tr_jumpStat(contl);
             break;
         case A_breakstat_stat:
             if (breakl == NULL)
@@ -885,20 +891,84 @@ static Tr_exp transStat(Tr_level level, E_linkage linkenv, E_namespace nameenv, 
                 EM_error(stat->pos, "break is not in a loop");
                 break;
             }
-            res = Tr_jumpStmt(breakl);
+            res = Tr_jumpStat(breakl);
             break;
+        case A_ifstat_stat:
+        {
+            Tr_exp cond = transExp(level, linkenv, nameenv, stat->u.ifstat.exp).exp;
+            Tr_exp then = transStat(level, linkenv, nameenv, contl, breakl, stat->u.ifstat.stat_true);
+            if (stat->u.ifstat.stat_false)
+            {
+                Tr_exp els = transStat(level, linkenv, nameenv, contl, breakl, stat->u.ifstat.stat_false);
+                res = Tr_iftfStat(cond, then, els);
+            }
+            else
+            {
+                res = Tr_iftStat(cond, then);
+            }
+            break;
+        }
+        case A_whilestat_stat:
+        {
+            Tr_exp cond = transExp(level, linkenv, nameenv, stat->u.whilestat.exp).exp;
+            Temp_label test = Temp_newlabel();
+            Temp_label done = Temp_newlabel();
+            Tr_exp body = transStat(level, linkenv, nameenv, test, done, stat->u.whilestat.stat);
+            res = Tr_whileStat(test, cond, body, done);
+            break;
+        }
+        case A_dowhile_stat:
+        {
+            Tr_exp cond = transExp(level, linkenv, nameenv, stat->u.dowhile.exp).exp;
+            Temp_label bodyStart = Temp_newlabel();
+            Temp_label done = Temp_newlabel();
+            Tr_exp body = transStat(level, linkenv, nameenv, bodyStart, done, stat->u.whilestat.stat);
+            res = Tr_dowhileStat(bodyStart, body, cond, done);
+            break;
+        }
+        case A_forexp_stat:
+        {
+            if (stat->u.forexp.exp_2)
+            {
+                Tr_exp exp1 = transExp(level, linkenv, nameenv, stat->u.forexp.exp_1).exp;
+                Tr_exp exp2 = transExp(level, linkenv, nameenv, stat->u.forexp.exp_2).exp;
+                Tr_exp exp3 = transExp(level, linkenv, nameenv, stat->u.forexp.exp_3).exp;
+                Temp_label test = Temp_newlabel();
+                Temp_label done = Temp_newlabel();
+                Tr_exp body = transStat(level, linkenv, nameenv, test, done, stat->u.forexp.stat);
+                res = Tr_forexpcondStat(exp1, test, exp2, body, exp3, done);
+                break;
+            }
+            else
+            {
+                Tr_exp exp1 = transExp(level, linkenv, nameenv, stat->u.forexp.exp_1).exp;
+                Tr_exp exp3 = transExp(level, linkenv, nameenv, stat->u.forexp.exp_3).exp;
+                Temp_label test = Temp_newlabel();
+                Temp_label done = Temp_newlabel();
+                Tr_exp body = transStat(level, linkenv, nameenv, test, done, stat->u.forexp.stat);
+                res = Tr_forexpStat(exp1, test, body, exp3, done);
+                break;
+            }
+            assert(0);
+        }
+        case A_returnstat_stat:
+        {
+            struct expty returnExpty = transExp(level, linkenv, nameenv, stat->u.returnstat);
+            if (!Ty_canAssignTy(level->functy->u.funcTy.returnTy, returnExpty.ty))
+            {
+                EM_error(stat->pos, "return type isn't match");
+                break;
+            }
+            res = Tr_returnStat(level, returnExpty.exp);
+            break;
+        }
         default:
             assert(0);
         /*
         A_casestat_stat,
         A_defaultstat_stat,
-        A_ifstat_stat,
         A_switchstat_stat,
-        A_whilestat_stat,
-        A_dowhile_stat,
-        A_forexp_stat,
         A_fordec_stat,
-        A_returnstat_stat
         */
     }
     return res;
@@ -914,7 +984,7 @@ static Tr_exp transDef(Tr_level level, E_linkage linkenv, E_namespace nameenv, A
             Tr_exp exp1, exp2;
             exp1 = transDef(level, linkenv, nameenv, def->u.seq.def);
             exp2 = transDef(level, linkenv, nameenv, def->u.seq.next);
-            res = Tr_seqStmt(exp1, exp2);
+            res = Tr_seqStat(exp1, exp2);
             break;
         }
         case A_func_def:
@@ -954,7 +1024,7 @@ static Tr_exp transDef(Tr_level level, E_linkage linkenv, E_namespace nameenv, A
             Tr_access access = NULL;
             S_symbol labelName = NULL;
             Tr_exp stats = NULL;
-            S_beginScope(S_FUNC, nameenv->lenv);
+            nameenv->lenv = S_beginScope(S_FUNC, nameenv->lenv);
             for(temp = dec->type->u.funcTy.params.head; temp; temp = temp->next)
             {
                 access = Tr_StackAccess(newlevel, temp->ty);
@@ -963,10 +1033,10 @@ static Tr_exp transDef(Tr_level level, E_linkage linkenv, E_namespace nameenv, A
                 S_enter(linkenv->nolink, dec->sym, entry);
             }
             stats = transStat(newlevel, linkenv, nameenv, NULL, NULL, def->u.func.stat);
-            Tr_addFuncStat(newlevel, stats);
+            Tr_procEntryExit(newlevel, stats);
             if ((labelName = E_checkLabel(nameenv->lenv)))
                 EM_error(0, "Label %s not found", labelName->name);//todo pos
-            S_endScope(nameenv->lenv);
+            nameenv->lenv = S_endScope(nameenv->lenv);
             break;
         }
         case A_simple_dec:
@@ -1654,4 +1724,10 @@ struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_
             assert(0);
     }
     return res;
+}
+
+F_fragList SEM_transProg(A_def def)
+{
+    transDef(Tr_Outermost(), E_Linkage(), E_Namespace(), def);
+	return Tr_getResult();
 }

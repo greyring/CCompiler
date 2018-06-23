@@ -1,6 +1,8 @@
 #include "absync.h"
 #include "testAST.h"
 #include "y.tab.h"
+#include "semant.h"
+#include "frame.h"
 #include <stdio.h>
 
 extern FILE *yyin;
@@ -24,7 +26,10 @@ int main(int argc, char *args[])
         printf("parse failed\n");
         return -1;
     }
-    TA_def(root);
-    printf("%s\n", TA_getRes());
+    F_fragList fragList;
+    fragList = SEM_transProg(root);
+
+    //TA_def(root);
+    //printf("%s\n", TA_getRes());
     return result;
 }

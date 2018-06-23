@@ -94,11 +94,11 @@ struct Tr_level_
     Temp_label name;
     F_frame frame;
     Tr_accessList formals;
+    Ty_ty functy;
 };
 
 Tr_level Tr_Outermost(void);
 Tr_level Tr_newLevel(Tr_level parent, Temp_label name, Ty_ty functy);
-
 
 
 Tr_access Tr_StrAccess(string s);//alloc
@@ -144,10 +144,18 @@ Tr_exp Tr_seqExp(Tr_exp exp1, Tr_exp exp2);
 
 Tr_expList Tr_ExpList(Tr_expList expList, Tr_exp exp);
 
-Tr_exp Tr_seqStmt(Tr_exp exp1, Tr_exp exp2);//handle null
-Tr_exp Tr_jumpStmt(Temp_label label);
-Tr_exp Tr_labelStmt(Temp_label label);
+Tr_exp Tr_seqStat(Tr_exp exp1, Tr_exp exp2);//handle null
+Tr_exp Tr_jumpStat(Temp_label label);
+Tr_exp Tr_labelStat(Temp_label label);
+Tr_exp Tr_iftStat(Tr_exp cond, Tr_exp then);
+Tr_exp Tr_iftfStat(Tr_exp cond, Tr_exp then, Tr_exp els);
+Tr_exp Tr_whileStat(Temp_label test, Tr_exp cond, Tr_exp body, Temp_label done);
+Tr_exp Tr_dowhileStat(Temp_label bodyStart, Tr_exp body, Tr_exp cond, Temp_label done);
+Tr_exp Tr_forexpcondStat(Tr_exp exp1, Temp_label test, Tr_exp exp2, Tr_exp body, Tr_exp exp3, Temp_label done);
+Tr_exp Tr_forexpStat(Tr_exp exp1, Temp_label test, Tr_exp body, Tr_exp exp3, Temp_label done);
+Tr_exp Tr_returnStat(Tr_level level, Tr_exp returnExp);
 
-void Tr_addFuncStat(Tr_level level, Tr_exp stat);
+void Tr_procEntryExit(Tr_level level, Tr_exp body);
+F_fragList Tr_getResult(void);
 
 #endif
