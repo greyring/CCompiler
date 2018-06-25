@@ -55,8 +55,8 @@ T_stm T_Cjump(T_relOp op, T_exp left, T_exp right,
 	p->u.CJUMP.op = op;
 	p->u.CJUMP.left = left;
 	p->u.CJUMP.right = right;
-	p->u.CJUMP.t = true;
-	p->u.CJUMP.f = false;
+	p->u.CJUMP.true = true;
+	p->u.CJUMP.false = false;
 	return p;
 }
 

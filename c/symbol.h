@@ -18,6 +18,7 @@ typedef enum
     S_EXLINK,
     S_INLINK,
     S_NOLINK,
+    S_NONE,
 } S_scope;
 
 struct S_symbol_

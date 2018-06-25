@@ -39,6 +39,18 @@ Temp_temp Temp_newtemp(void)
     return p;
 }
 
+Temp_temp Temp_reg(int num)
+{
+    Temp_temp p = checked_malloc(sizeof (*p));
+    p->num=num;
+    {
+        char r[16];
+        sprintf(r, "%d", p->num);
+        Temp_enter(Temp_name(), p, String(r));
+    }
+    return p;
+}
+
 Temp_tempList Temp_TempList(Temp_temp h, Temp_tempList t) 
 {
     Temp_tempList p = (Temp_tempList) checked_malloc(sizeof (*p));

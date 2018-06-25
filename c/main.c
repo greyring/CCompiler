@@ -3,6 +3,8 @@
 #include "y.tab.h"
 #include "semant.h"
 #include "frame.h"
+#include "canon.h"
+#include "printtree.h"
 #include <stdio.h>
 
 extern FILE *yyin;
@@ -29,6 +31,14 @@ int main(int argc, char *args[])
     F_fragList fragList;
     fragList = SEM_transProg(root);
 
+    F_frag frag;
+    for (frag = fragList.head; frag; frag = frag->next)
+    {
+        T_stmList stmList;
+        stmList = C_linearize(frag->body);
+        stmList = C_traceSchedule(C_basicBlocks(stmList));
+        printStmList(stdout, stmList);
+    }
     //TA_def(root);
     //printf("%s\n", TA_getRes());
     return result;

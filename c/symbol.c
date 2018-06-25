@@ -62,7 +62,7 @@ void *S_look(S_table t, S_symbol sym)
 {
     void *temp;
     temp = TAB_look(t->table, sym);
-    if (t)
+    if (temp)
         return temp;
     if (t->parent)
         return S_look(t->parent, sym);

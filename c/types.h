@@ -97,11 +97,7 @@ struct Ty_ty_
             Ty_ty ty;
             int bitSize;
         }bitTy;
-        struct
-        {
-            Ty_ty ty;
-            unsigned long qual;
-        }pointerTy;
+        Ty_ty pointerTy;
         struct
         {
             Ty_ty ty;

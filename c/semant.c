@@ -19,7 +19,7 @@ static Tr_exp transDef(Tr_level level, E_linkage linkenv, E_namespace nameenv, A
 static struct expty Expty(Tr_exp exp, Ty_ty ty)
 {
     struct expty e;
-    e.exp = exp; e.ty = ty;
+    e.exp = exp; e.ty = Ty_actualTy(ty);
     return e;
 }
 
@@ -34,10 +34,9 @@ static exptyNode SE_ExptyNode(struct expty expty)
 static exptyList SE_ExptyList(exptyList exptyList, exptyNode exptyNode)
 {
     if (exptyList.head == NULL)
-    {
-        exptyList.head = exptyList.tail = NULL;
-    }
-    exptyList.tail = exptyList.tail->next = exptyNode;
+        exptyList.head = exptyList.tail = exptyNode;
+    else
+        exptyList.tail = exptyList.tail->next = exptyNode;
     return exptyList;
 }
 
@@ -178,6 +177,10 @@ case A_##NAME : \
 	break; 
 static void _transSpec(Tr_level level, E_linkage linkenv, E_namespace nameenv, Ty_spec ty_spec, A_spec spec)
 {
+    if (spec == NULL){
+        return;
+    }
+        
 	switch(spec->kind)
 	{
 		case A_storage_spec:
@@ -247,7 +250,10 @@ static void _transPointer(Tr_level level, E_linkage linkenv, E_namespace nameenv
             break;
         }
         case A_seq_pointer:
-            _transPointer(level, linkenv, nameenv, ty_dec, pointer->u.seq.pointer);
+            if (pointer->u.seq.pointer)
+                _transPointer(level, linkenv, nameenv, ty_dec, pointer->u.seq.pointer);
+            else
+                ty_dec->type = Ty_PointerTy(ty_dec->type, 0);
             _transPointer(level, linkenv, nameenv, ty_dec, pointer->u.seq.next);
             break;
         default:
@@ -331,8 +337,8 @@ static Ty_dec _transDec(Tr_level level, E_linkage linkenv, E_namespace nameenv, 
             }
             break;
         case A_pointer_dec:
-            _transPointer(level, linkenv, nameenv, ty_dec, dec->u.pointer.pointer);
             _transDec(level, linkenv, nameenv, ty_dec, dec->u.pointer.dec);
+            _transPointer(level, linkenv, nameenv, ty_dec, dec->u.pointer.pointer);
             break;
         case A_array_dec:
         {
@@ -511,13 +517,12 @@ static void _transSDeclar(Tr_level level, E_linkage linkenv, E_namespace nameenv
                     //size
                     while(temp_size % declar->type->align)
                         temp_size += 1;
-                    sty->u.structTy = Ty_SFieldList(sty->u.structTy, Ty_SField(declar->type, declar->sym, temp_size));
-                    temp_size += Tr_getIntConst(declar->type->size.exp);
-                    sty->size.exp = Tr_IntConst(temp_size);
                     //align
                     if (sty->u.structTy.head == NULL)
                         sty->align = declar->type->align;
-                    
+                    sty->u.structTy = Ty_SFieldList(sty->u.structTy, Ty_SField(declar->type, declar->sym, temp_size));
+                    temp_size += Tr_getIntConst(declar->type->size.exp);
+                    sty->size.exp = Tr_IntConst(temp_size);
                 }
                 else//union
                 {
@@ -556,13 +561,19 @@ static Ty_ty transSUType(Tr_level level, E_linkage linkenv, E_namespace nameenv,
     {
         resty = checked_malloc(sizeof(*resty));
         resty->kind = type->u.struct_union.struct_union == A_STRUCT ? Ty_structTy : Ty_unionTy;
+        resty->size.exp = Tr_IntConst(0);
+        resty->size.ty = Ty_Int();
+        resty->complete = 1;
         
         //add forward declar
         if (type->u.struct_union.id)
         {
             Ty_ty ty = S_look(nameenv->tenv, type->u.struct_union.id);
             if (ty && (ty->kind != Ty_forwardTy || ty->complete))
+            {
                 EM_error(type->pos, "has been declared before");
+                return NULL;
+            }
             if (ty == NULL)
             {
                 //tenv id -> [forward] (NULL)
@@ -614,6 +625,7 @@ static Tr_exp transInit(Tr_level level, E_linkage linkenv, E_namespace nameenv, 
                 break;
             }
             res = Tr_assignExp(Tr_simpleVar(level, entry->u.var.access), expty.exp);
+            break;
         }
         default://todo
             assert(0);
@@ -662,6 +674,7 @@ static Tr_exp transDeclar(Tr_level level, E_linkage linkenv, E_namespace nameenv
                         EM_error(declar->pos, "has been declared before");
                         goto next;
                     }
+                    dec->type = Ty_NameTy(dec->type);
                     S_enter(nameenv->venv, dec->sym, dec->type);
                 }
                 else if (Ty_isEXTERN(spec->specs))//extern
@@ -813,10 +826,20 @@ next:
 static Tr_exp transStat(Tr_level level, E_linkage linkenv, E_namespace nameenv, Temp_label contl, Temp_label breakl, A_stat stat)
 {
     Tr_exp res = NULL;
+    if (stat == NULL)
+        return NULL;
     switch(stat->kind)
     {
         case A_block_stat:
         {
+            if (nameenv->venv->scope == S_FUNC)
+            {
+                nameenv->venv->scope = S_BLOCK;
+                nameenv->tenv->scope = S_BLOCK;
+                linkenv->nolink->scope = S_BLOCK;
+                res = transStat(level, linkenv, nameenv, contl, breakl, stat->u.block);
+                break;
+            }
             E_BeginScope(S_BLOCK, nameenv);
             linkenv->nolink = S_beginScope(S_NOLINK, linkenv->nolink);
             res = transStat(level, linkenv, nameenv, contl, breakl, stat->u.block);
@@ -840,7 +863,7 @@ static Tr_exp transStat(Tr_level level, E_linkage linkenv, E_namespace nameenv, 
             break;
         }
         case A_dec_stat:
-            transDeclar(level, linkenv, nameenv, stat->u.dec);
+            res = transDeclar(level, linkenv, nameenv, stat->u.dec);
             break;
         case A_label_stat:
         {
@@ -1011,32 +1034,39 @@ static Tr_exp transDef(Tr_level level, E_linkage linkenv, E_namespace nameenv, A
                     EM_error(def->pos, "has been defined before");
                     break;
                 }
-                newlevel = Tr_newLevel(level, Temp_newlabel(), dec->type);
+                newlevel = Tr_newLevel(level, Temp_namedlabel(dec->sym->name), dec->type);
                 entry->u.func.level = newlevel;
             }
             else
             {
-                newlevel = Tr_newLevel(level, Temp_newlabel(), dec->type);
+                newlevel = Tr_newLevel(level, Temp_namedlabel(dec->sym->name), dec->type);
                 entry = E_FuncEntry(dec->type, newlevel);
+                S_enter(nameenv->venv, dec->sym, entry);
             }
 
             Ty_field temp = NULL;
             Tr_access access = NULL;
             S_symbol labelName = NULL;
             Tr_exp stats = NULL;
-            nameenv->lenv = S_beginScope(S_FUNC, nameenv->lenv);
-            for(temp = dec->type->u.funcTy.params.head; temp; temp = temp->next)
+
+            E_BeginScope(S_FUNC, nameenv);
+            linkenv->nolink = S_beginScope(S_FUNC, linkenv->nolink);
+            temp = dec->type->u.funcTy.params.head;
+            access = newlevel->formals.head;
+            while(temp && access)
             {
-                access = Tr_StackAccess(newlevel, temp->ty);
                 entry = E_VarEntry(access, temp->ty);
-                S_enter(nameenv->venv, dec->sym, entry);
-                S_enter(linkenv->nolink, dec->sym, entry);
+                S_enter(nameenv->venv, temp->name, entry);
+                S_enter(linkenv->nolink, temp->name, entry);
+                temp = temp->next;
+                access = access->next;
             }
             stats = transStat(newlevel, linkenv, nameenv, NULL, NULL, def->u.func.stat);
             Tr_procEntryExit(newlevel, stats);
             if ((labelName = E_checkLabel(nameenv->lenv)))
                 EM_error(0, "Label %s not found", labelName->name);//todo pos
-            nameenv->lenv = S_endScope(nameenv->lenv);
+            linkenv->nolink = S_endScope(linkenv->nolink);
+            E_EndScope(nameenv);
             break;
         }
         case A_simple_dec:
@@ -1082,9 +1112,17 @@ struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_
         {
             E_enventry e = S_look(nameenv->venv, a->u.id);
             if (e == NULL)
-                EM_error(a->pos, "No such variable");
+            {
+                EM_error(a->pos, "No such id");
+                break;
+            }
             if (e->kind == E_varEntry)
-                res = Expty(Tr_simpleVar(level, e->u.var.access), e->u.var.ty);
+            {
+                if (Ty_isArrayTy(e->u.var.ty) || Ty_isSUTy(e->u.var.ty))
+                    res = Expty(Tr_varAddress(level, e->u.var.access), e->u.var.ty);
+                else
+                    res = Expty(Tr_simpleVar(level, e->u.var.access), e->u.var.ty);
+            }
             else if (e->kind == E_funcEntry)
                 res = Expty(Tr_simpleFunc(e->u.func.level), e->u.func.functy);
             else
@@ -1107,37 +1145,32 @@ struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_
         {
             struct expty idExp = transExp(level, linkenv, nameenv, a->u.subscript.expr);
             struct expty sbExp = transExp(level, linkenv, nameenv, a->u.subscript.subscript);
+            Ty_ty subty = NULL;
             if (!Ty_isIntTy(sbExp.ty)){
                 EM_error(a->pos, "Subscript needs to be int type");
                 break;
             }
+
             if (Ty_isArrayTy(idExp.ty))
-            {
-                Ty_ty subty = idExp.ty->u.arrayTy.ty;
-                Ty_calcASC(idExp.ty);
-                if (!subty->complete)
-                {
-                    EM_error(a->pos, "subscript type is incomplete");
-                    break;
-                }
-                res = Expty(Tr_subExp(idExp.exp, sbExp.exp, subty->size.exp), subty);
-            }
+                subty = idExp.ty->u.arrayTy.ty;
             else if (Ty_isPointerTy(idExp.ty))
-            {
-                Ty_ty subty = idExp.ty->u.pointerTy.ty;
-                Ty_calcASC(idExp.ty);
-                if (!subty->complete)
-                {
-                    EM_error(a->pos, "subscript type is incomplete");
-                    break;
-                }
-                res = Expty(Tr_subExp(idExp.exp, sbExp.exp, subty->size.exp), subty);
-            }
+                subty = idExp.ty->u.pointerTy;
             else
             {
                 EM_error(a->pos, "id needs to be array or pointer type");
                 break;
             }
+
+            Ty_calcASC(idExp.ty);
+            if (!subty->complete)
+            {
+                EM_error(a->pos, "subscript type is incomplete");
+                break;
+            }
+            if (Ty_isArrayTy(subty) || Ty_isSUTy(subty))
+                    res = Expty(Tr_subExpAddr(idExp.exp, sbExp.exp, subty->size.exp), subty);
+                else
+                    res = Expty(Tr_subExp(idExp.exp, sbExp.exp, subty->size.exp), subty);
             break;
         }
         case A_funccall_exp : //Simple One
@@ -1155,10 +1188,10 @@ struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_
                 field = funcExp.ty->u.funcTy.params.head;
                 returnTy = funcExp.ty->u.funcTy.returnTy;
             }
-            else if (Ty_isPointerTy(funcExp.ty) && Ty_isFuncTy(funcExp.ty->u.pointerTy.ty))//function pointer
+            else if (Ty_isPointerTy(funcExp.ty) && Ty_isFuncTy(funcExp.ty->u.pointerTy))//function pointer
             {
-                field = funcExp.ty->u.pointerTy.ty->u.funcTy.params.head;
-                returnTy = funcExp.ty->u.pointerTy.ty->u.funcTy.returnTy;
+                field = funcExp.ty->u.pointerTy->u.funcTy.params.head;
+                returnTy = funcExp.ty->u.pointerTy->u.funcTy.returnTy;
             }
             else
             {
@@ -1218,7 +1251,12 @@ struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_
                 EM_error(a->pos, "member not found");
                 break;
             }
-            res = Expty(Tr_dotExp(structExp.exp, mem->offset), mem->ty);
+            
+            if (Ty_isArrayTy(mem->ty) || Ty_isSUTy(mem->ty))
+                    res = Expty(Tr_dotAddrExp(structExp.exp, mem->offset), mem->ty);
+                else
+                    res = Expty(Tr_dotExp(structExp.exp, mem->offset), mem->ty);
+            
             break;
         }
         case A_point_exp ://->
@@ -1227,13 +1265,13 @@ struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_
             Ty_sField mem = NULL;
 
             spExp = transExp(level, linkenv, nameenv, a->u.point.expr);
-            if (!Ty_isPointerTy(spExp.ty) || !Ty_isSUTy(spExp.ty->u.pointerTy.ty))
+            if (!Ty_isPointerTy(spExp.ty) || !Ty_isSUTy(spExp.ty->u.pointerTy))
             {
                 EM_error(a->pos, "type is not a pointer to struct");
                 break;
             }
 
-            mem = spExp.ty->u.pointerTy.ty->u.structTy.head;
+            mem = Ty_actualTy(spExp.ty->u.pointerTy)->u.structTy.head;
             while(mem)
             {
                 if (mem->name == a->u.point.id)
@@ -1245,7 +1283,11 @@ struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_
                 EM_error(a->pos, "member not found");
                 break;
             }
-            res = Expty(Tr_pointExp(spExp.exp, mem->offset), mem->ty);
+
+            if (Ty_isArrayTy(mem->ty) || Ty_isSUTy(mem->ty))
+                    res = Expty(Tr_pointAddrExp(spExp.exp, mem->offset), mem->ty);
+                else
+                    res = Expty(Tr_pointExp(spExp.exp, mem->offset), mem->ty);
             break;
         }
         case A_postpp_exp : case A_postmm_exp : 
@@ -1271,9 +1313,9 @@ struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_
                     break;
                 }
                 if (a->kind == A_postpp_exp)
-                    res = Expty(Tr_postppPointerExp(expty.exp, expty.ty->u.pointerTy.ty->size.exp), expty.ty);
+                    res = Expty(Tr_postppPointerExp(expty.exp, expty.ty->u.pointerTy->size.exp), expty.ty);
                 else
-                    res = Expty(Tr_postmmPointerExp(expty.exp, expty.ty->u.pointerTy.ty->size.exp), expty.ty);
+                    res = Expty(Tr_postmmPointerExp(expty.exp, expty.ty->u.pointerTy->size.exp), expty.ty);
             }
             else
             {
@@ -1311,9 +1353,9 @@ struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_
                     break;
                 }
                 if (a->kind == A_prepp_exp)
-                    res = Expty(Tr_preppPointerExp(expty.exp, expty.ty->u.pointerTy.ty->size.exp), expty.ty);
+                    res = Expty(Tr_preppPointerExp(expty.exp, expty.ty->u.pointerTy->size.exp), expty.ty);
                 else
-                    res = Expty(Tr_premmPointerExp(expty.exp, expty.ty->u.pointerTy.ty->size.exp), expty.ty);
+                    res = Expty(Tr_premmPointerExp(expty.exp, expty.ty->u.pointerTy->size.exp), expty.ty);
             }
             else
             {
@@ -1340,7 +1382,7 @@ struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_
                         EM_error(a->pos, "can not get address of rval");
                         break;
                     }
-                    res = Expty(Tr_getPointer(expty.exp), Ty_PointerTy(expty.ty, 0));
+                    res = Expty(Tr_getPointer(expty.exp), Ty_PointerTy(expty.ty, Ty_RVAL));
                     break;
                 }
                 case A_MUL:
@@ -1350,7 +1392,7 @@ struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_
                         EM_error(a->pos, "type is not pointer");
                         break;
                     }
-                    res = Expty(Tr_getMem(expty.exp), expty.ty->u.pointerTy.ty);
+                    res = Expty(Tr_getMem(expty.exp), expty.ty->u.pointerTy);
                     break;
                 }
                 case A_PLUS:
@@ -1544,7 +1586,7 @@ struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_
                     if (
                     (Ty_isArithTy(left.ty) && Ty_isArithTy(right.ty)) ||
                     (Ty_isPointerTy(left.ty) && Ty_isPointerTy(right.ty) && 
-                        Ty_areSameTy(left.ty->u.pointerTy.ty, right.ty->u.pointerTy.ty))
+                        Ty_areSameTy(left.ty->u.pointerTy, right.ty->u.pointerTy))
                     )
                     {
                         returnTy = Ty_VInt(Ty_RVAL);
@@ -1592,8 +1634,8 @@ struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_
                     if (
                     (Ty_isArithTy(left.ty) && Ty_isArithTy(right.ty)) ||
                     (Ty_isPointerTy(left.ty) && Ty_isPointerTy(right.ty) && 
-                        (Ty_areSameTy(left.ty->u.pointerTy.ty, right.ty->u.pointerTy.ty) ||
-                         (Ty_isVoidTy(left.ty->u.pointerTy.ty) || Ty_isVoidTy(right.ty->u.pointerTy.ty)) ||
+                        (Ty_areSameTy(left.ty->u.pointerTy, right.ty->u.pointerTy) ||
+                         (Ty_isVoidTy(left.ty->u.pointerTy) || Ty_isVoidTy(right.ty->u.pointerTy)) ||
                          (left.ty == Ty_Null() || right.ty == Ty_Null())
                         ))
                     )
@@ -1612,9 +1654,9 @@ struct expty transExp(Tr_level level, E_linkage linkenv, E_namespace nameenv, A_
                             }
                             else
                             {
-                                if (a->u.binop.op == A_GT)
+                                if (a->u.binop.op == A_EQ)
                                     res = Expty(Tr_Relop(Tr_EQINT, left.exp, right.exp), returnTy);
-                                if (a->u.binop.op == A_LT)
+                                if (a->u.binop.op == A_NEQ)
                                     res = Expty(Tr_Relop(Tr_NEQINT, left.exp, right.exp), returnTy);
                             }
                         }

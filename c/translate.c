@@ -83,8 +83,8 @@ static struct Cx unCx(Tr_exp e)
         {
             struct Cx cx;
             cx.stm = T_Cjump(T_eq, e->u.ex, T_Const(0), NULL, NULL);
-            cx.t = PatchList(&(cx.stm->u.CJUMP.f), NULL);
-            cx.f = PatchList(&(cx.stm->u.CJUMP.t), NULL);
+            cx.t = PatchList(&(cx.stm->u.CJUMP.false), NULL);
+            cx.f = PatchList(&(cx.stm->u.CJUMP.true), NULL);
             return cx;
         }
         case Tr_nx:
@@ -189,7 +189,9 @@ static Tr_level Tr_outermost = NULL;
 Tr_level Tr_Outermost(void)
 {
     if (!Tr_outermost)
-        return Tr_newLevel(NULL, Temp_newlabel(), NULL);
+    {
+        Tr_outermost = Tr_newLevel(NULL, Temp_newlabel(), NULL);
+    }
     return Tr_outermost;
 }
 
@@ -236,7 +238,7 @@ Tr_access Tr_GlobalAccess(Ty_ty type)
         EM_error(0, "global variable cannot be variable size");
         return NULL;
     }
-    p = Tr_frame_access(Tr_Outermost(), F_allocLocal(Tr_Outermost()->frame, 1, Tr_getIntConst(type->size.exp)));
+    p = Tr_frame_access(Tr_Outermost(), F_allocLocal(Tr_Outermost()->frame, 1, type->align, Tr_getIntConst(type->size.exp)));
     Tr_Outermost()->formals = Tr_AccessList(Tr_Outermost()->formals, p);
     return p;
 }
@@ -271,7 +273,7 @@ Tr_access Tr_StackAccess(Tr_level level, Ty_ty type)
         EM_error(0, "variable size alloc is not supported");
         return NULL;
     }
-    p = Tr_frame_access(level, F_allocLocal(level->frame, 1, Tr_getIntConst(type->size.exp)));
+    p = Tr_frame_access(level, F_allocLocal(level->frame, 1, type->align, Tr_getIntConst(type->size.exp)));
     level->formals = Tr_AccessList(level->formals, p);
     return p;
 }
@@ -282,6 +284,10 @@ Tr_access Tr_StackAccess(Tr_level level, Ty_ty type)
 
 
 
+Tr_exp Tr_nil()
+{
+    return Tr_Ex(T_Const(0));
+}
 
 Tr_exp Tr_simpleVar(Tr_level level, Tr_access access)
 {
@@ -290,7 +296,7 @@ Tr_exp Tr_simpleVar(Tr_level level, Tr_access access)
         switch (access->kind)
         {
             case Tr_Frame:
-                return Tr_Ex(F_Var(access->u.Frame, T_Temp(F_FP())));
+                return Tr_Ex(F_Var(access->u.Frame, T_Temp(F_GP())));
             case Tr_Extern:
                 return Tr_Ex(F_ExVar(access->u.Extern));
             case Tr_Const:
@@ -311,9 +317,35 @@ Tr_exp Tr_simpleVar(Tr_level level, Tr_access access)
     assert(0);
 }
 
+Tr_exp Tr_varAddress(Tr_level level, Tr_access access)
+{
+    if (access->level == Tr_Outermost())
+    {
+        switch (access->kind)
+        {
+            case Tr_Frame:
+                return Tr_Ex(T_Binop(T_plus, T_Temp(F_GP()), T_Const(access->u.Frame->u.frame.offset)));
+            case Tr_Extern:
+                return Tr_Ex(T_Name(access->u.Extern));
+            default:
+                assert(0);
+        }
+    }
+    else if (access->level == level)
+    {
+        return Tr_Ex(T_Binop(T_plus, T_Temp(F_FP()), T_Const(access->u.Frame->u.frame.offset)));
+    }
+    else
+    {
+        EM_error(0, "static link not support");//todo pos
+        return NULL;
+    }
+    assert(0);
+}
+
 Tr_exp Tr_simpleFunc(Tr_level level)
 {
-    return Tr_Nx(T_Label(level->name));
+    return Tr_Ex(T_Name(level->name));
 }
 
 Tr_exp Tr_IntConst(int i)
@@ -359,7 +391,16 @@ Tr_exp Tr_strExp(string s)
 
 Tr_exp Tr_subExp(Tr_exp idExp, Tr_exp subExp, Tr_exp size)
 {
-    return Tr_Ex(T_Mem(T_Binop(T_plus, unEx(idExp), unEx(subExp))));
+    T_exp offset = unEx(subExp);
+    offset = T_Binop(T_mul, offset, unEx(size));
+    return Tr_Ex(T_Mem(T_Binop(T_plus, unEx(idExp), offset)));
+}
+
+Tr_exp Tr_subExpAddr(Tr_exp idExp, Tr_exp subExp, Tr_exp size)
+{
+    T_exp offset = unEx(subExp);
+    offset = T_Binop(T_mul, offset, unEx(size));
+    return Tr_Ex(T_Binop(T_plus, unEx(idExp), offset));
 }
 
 Tr_exp Tr_funcCallExp(Tr_exp funcexp, Tr_expList expList)
@@ -373,9 +414,19 @@ Tr_exp Tr_dotExp(Tr_exp structExp, int offset)
     return Tr_Ex(T_Mem(T_Binop(T_plus, unEx(structExp), T_Const(offset))));
 }
 
+Tr_exp Tr_dotAddrExp(Tr_exp structExp, int offset)
+{
+    return Tr_Ex(T_Binop(T_plus, unEx(structExp), T_Const(offset)));
+}
+
 Tr_exp Tr_pointExp(Tr_exp pointExp, int offset)
 {
     return Tr_Ex(T_Mem(T_Binop(T_plus, T_Mem(unEx(pointExp)), T_Const(offset))));
+}
+
+Tr_exp Tr_pointAddrExp(Tr_exp pointExp, int offset)
+{
+    return Tr_Ex(T_Binop(T_plus, T_Mem(unEx(pointExp)), T_Const(offset)));
 }
 
 Tr_exp Tr_postppIntExp(Tr_exp intExp)
@@ -465,8 +516,10 @@ Tr_exp Tr_premmPointerExp(Tr_exp pointerExp, Tr_exp size)
 Tr_exp Tr_getPointer(Tr_exp memExp)
 {
     T_exp exp = unEx(memExp);
-    assert(exp->kind != T_MEM);
-    return Tr_Ex(exp->u.MEM);
+    if (exp->kind == T_MEM)
+        return Tr_Ex(exp->u.MEM);
+    else 
+        return Tr_Ex(exp);
 }
 
 Tr_exp Tr_getMem(Tr_exp pointExp)
@@ -487,8 +540,8 @@ Tr_exp Tr_notConst(Tr_exp exp)
 Tr_exp Tr_lognotInt(Tr_exp exp)
 {
     T_stm cond = T_Cjump(T_ne, unEx(exp), T_Const(0), NULL, NULL);
-    patchList t = PatchList(&cond->u.CJUMP.t, NULL);
-    patchList f = PatchList(&cond->u.CJUMP.f, NULL);
+    patchList t = PatchList(&cond->u.CJUMP.true, NULL);
+    patchList f = PatchList(&cond->u.CJUMP.false, NULL);
     return Tr_Cx(t, f, cond);
 }
 
@@ -602,8 +655,8 @@ Tr_exp Tr_Relop(Tr_relop op, Tr_exp exp1, Tr_exp exp2)
             assert(0);
     }
     T_stm cond = T_Cjump(rop, unEx(exp1), unEx(exp2), NULL, NULL);
-    patchList t = PatchList(&cond->u.CJUMP.t, NULL);
-    patchList f = PatchList(&cond->u.CJUMP.f, NULL);
+    patchList t = PatchList(&cond->u.CJUMP.true, NULL);
+    patchList f = PatchList(&cond->u.CJUMP.false, NULL);
     return Tr_Cx(t, f, cond);
 }
 
@@ -716,10 +769,24 @@ Tr_exp Tr_forexpcondStat(Tr_exp exp1, Temp_label test, Tr_exp exp2, Tr_exp body,
     doPatch(condCx.t, bodyStart);
     doPatch(condCx.f, done);
     if (exp3)
-        res = T_Seq(unNx(body), unNx(exp3));
+    {
+        if (body)
+            res = T_Seq(unNx(body), unNx(exp3));
+        else
+            res = unNx(exp3);
+        res = T_Seq(res, T_Jump(T_Name(test), Temp_LabelList(test, NULL)));
+    }
     else
-        res = unNx(body);
-    res = T_Seq(res, T_Jump(T_Name(test), Temp_LabelList(test, NULL)));
+    {
+        if (body)
+        {
+            res = unNx(body);
+            res = T_Seq(res, T_Jump(T_Name(test), Temp_LabelList(test, NULL)));
+        }
+        else
+            res = T_Jump(T_Name(test), Temp_LabelList(test, NULL));
+    }
+    res = T_Seq(T_Label(bodyStart), res);
     res = T_Seq(condCx.stm, res);
     res = T_Seq(T_Label(test), res);
     res = T_Seq(res, T_Label(done));
@@ -732,10 +799,25 @@ Tr_exp Tr_forexpStat(Tr_exp exp1, Temp_label test, Tr_exp body, Tr_exp exp3, Tem
 {
     T_stm res = NULL;
     if (exp3)
-        res = T_Seq(unNx(body), unNx(exp3));
+    {
+        if (body)
+            res = T_Seq(unNx(body), unNx(exp3));
+        else
+            res = unNx(exp3);
+        res = T_Seq(res, T_Jump(T_Name(test), Temp_LabelList(test, NULL)));
+
+    }
     else
-        res = unNx(body);
-    res = T_Seq(res, T_Jump(T_Name(test), Temp_LabelList(test, NULL)));
+    {
+        if (body)
+        {
+            res = unNx(body);
+            res = T_Seq(res, T_Jump(T_Name(test), Temp_LabelList(test, NULL)));
+        }
+        else
+            res = T_Jump(T_Name(test), Temp_LabelList(test, NULL));
+    }
+    
     res = T_Seq(T_Label(test), res);
     res = T_Seq(res, T_Label(done));
     if (exp1)
@@ -753,8 +835,15 @@ Tr_exp Tr_returnStat(Tr_level level, Tr_exp returnExp)
 
 void Tr_procEntryExit(Tr_level level, Tr_exp body)
 {
-    //end label of frame is not linked to body
-	F_frag frag = F_ProcFrag(unNx(body), level->frame);
+    T_stm bodyStm;
+    if (body)
+        bodyStm = unNx(body);
+    else
+        bodyStm = unNx(Tr_nil());
+    bodyStm = T_Seq(bodyStm, T_Label(level->frame->end));
+    bodyStm = T_Seq(T_Label(level->name), bodyStm);
+
+	F_frag frag = F_ProcFrag(bodyStm, level->frame);
 	FRAGLIST = F_FragList(FRAGLIST, frag);
 }
 

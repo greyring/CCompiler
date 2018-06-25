@@ -230,6 +230,7 @@ int Ty_isCompleteTy(Ty_ty ty)
 {
     if (ty == NULL)
         return 0;
+    ty = Ty_actualTy(ty);
     Ty_calcASC(ty);
     return ty->complete;
 }
@@ -335,10 +336,10 @@ static Ty_ty Ty_linkTy(Ty_ty outer, Ty_ty inner)
             }
             break;
         case Ty_pointerTy:
-            if (outer->u.pointerTy.ty)
-                Ty_linkTy(outer->u.pointerTy.ty, inner);
+            if (outer->u.pointerTy)
+                Ty_linkTy(outer->u.pointerTy, inner);
             else
-                outer->u.pointerTy.ty = inner;
+                outer->u.pointerTy = inner;
             break;
         case Ty_arrayTy:
             if (outer->u.arrayTy.ty)
@@ -454,7 +455,7 @@ void Ty_calcASC(Ty_ty type)
         case Ty_bitTy://todo not support
             break;
         case Ty_pointerTy:
-            Ty_calcASC(type->u.pointerTy.ty);
+            Ty_calcASC(type->u.pointerTy);
             type->complete = 1;
             type->align = SIZE_POINTER;
             type->size = Ty_Expty(Tr_IntConst(SIZE_POINTER), Ty_Int());
@@ -482,6 +483,7 @@ void Ty_calcASC(Ty_ty type)
             else
                 type->complete = 0;
             type->align = type->u.arrayTy.ty->align;
+            break;
         case Ty_funcTy:
             type->complete = 1;
             type->size = Ty_Expty(Tr_IntConst(0), Ty_Int());
@@ -542,8 +544,8 @@ Ty_ty Ty_PointerTy(Ty_ty ty, unsigned long qual)
 {
     Ty_ty p = checked_malloc(sizeof(*p));
     p->kind = Ty_pointerTy;
-    p->u.pointerTy.ty = ty;
-    p->u.pointerTy.qual = qual;
+    p->u.pointerTy = ty;
+    p->specs = qual;
     return p;
 }
 
@@ -604,6 +606,7 @@ Ty_sField Ty_SField(Ty_ty ty, S_symbol name, int offset)
     p->ty = ty;
     p->name = name;
     p->offset = offset;
+    p->next = NULL;
     return p;
 }
 
@@ -666,7 +669,7 @@ int Ty_areSameTy(Ty_ty ty1, Ty_ty ty2)
                 return 0;
             return 1;
         case Ty_pointerTy:
-            return Ty_areSameTy(ty1->u.pointerTy.ty, ty2->u.pointerTy.ty);
+            return Ty_areSameTy(ty1->u.pointerTy, ty2->u.pointerTy);
         case Ty_arrayTy://todo check
             if (!Ty_areSameTy(ty1->u.arrayTy.ty, ty2->u.arrayTy.ty))
                 return 0;
@@ -686,6 +689,8 @@ int Ty_areSameTy(Ty_ty ty1, Ty_ty ty2)
                     return 0;
                 if (!Ty_areSameTy(temp1->ty, temp2->ty))
                     return 0;
+                temp1 = temp1->next;
+                temp2 = temp2->next;
             }
             if (temp1 == temp2)
                 return 1;
@@ -705,7 +710,7 @@ int Ty_canAssignTy(Ty_ty dst, Ty_ty src)
 
     dst = Ty_actualTy(dst);
     src = Ty_actualTy(src);
-    if (dst == src)
+    if (Ty_areSameTy(dst, src))
         return 1;
     switch (dst->kind)
     {
@@ -716,6 +721,8 @@ int Ty_canAssignTy(Ty_ty dst, Ty_ty src)
         case Ty_basicTy:
             if (src->kind != Ty_basicTy)
                 return 0;
+            if (Ty_isVoidTy(dst)|| Ty_isVoidTy(src))
+                return 0;
             return rank(dst) >= rank(src);
         case Ty_structTy:
             return 0;
@@ -724,9 +731,13 @@ int Ty_canAssignTy(Ty_ty dst, Ty_ty src)
         case Ty_bitTy:
             return 0;//not support
         case Ty_pointerTy:
-            if (src->kind != Ty_pointerTy)
-                return 0;
-            return Ty_areSameTy(src->u.pointerTy.ty, dst->u.pointerTy.ty);
+            if (src->kind == Ty_pointerTy)
+                return Ty_areSameTy(src->u.pointerTy, dst->u.pointerTy);
+            if (src->kind == Ty_arrayTy)
+                return Ty_areSameTy(src->u.arrayTy.ty, dst->u.pointerTy);
+            if (src->kind == Ty_funcTy)
+                return Ty_areSameTy(src, dst->u.pointerTy);
+            return 0;
         case Ty_arrayTy:
             return 0;
         case Ty_funcTy:
@@ -757,8 +768,8 @@ int Ty_canGetPointer(Ty_ty ty)
             return 1;
         case Ty_arrayTy://todo
             return 0;
-        case Ty_funcTy://todo
-            return 0;
+        case Ty_funcTy:
+            return 1;
     }
     assert(0);   
 }
@@ -779,27 +790,54 @@ static Ty_ty autoConvert(Ty_ty ty1, Ty_ty ty2)
     // if (basicTy == Ty_Double() || basicTy->u.basicTy == Ty_Double()) return 12;
     // if (basicTy == Ty_LDouble() || basicTy->u.basicTy == Ty_LDouble()) return 13;
     int a, b, c;
-    a = rank(ty1);
-    b = rank(ty2);
-    c = a>b ? a : b;
-    switch (c)
+    ty1 = Ty_actualTy(ty1);
+    ty2 = Ty_actualTy(ty2);
+
+    if (Ty_areSameTy(ty1, ty2))
     {
-        case 1: case 2: case 3: case 4: case 5:
-            return Ty_VInt(Ty_RVAL);
-        case 6:
-            return Ty_VUInt(Ty_RVAL);
-        case 7:
-            return Ty_VLong(Ty_RVAL);
-        case 8:
-            return Ty_VULong(Ty_RVAL);
-        case 9:
-            return Ty_VLLong(Ty_RVAL);
-        case 10:
-            return Ty_VULLong(Ty_RVAL);
-        case 11: case 12:
-            return Ty_VDouble(Ty_RVAL);
-        case 13:
-            return Ty_VLDouble(Ty_RVAL);
+        Ty_ty res = checked_malloc(sizeof(*res));
+        *res = *ty1;
+        res->specs = Ty_RVAL;
+        return res;
+    }
+    switch (ty1->kind)
+    {
+        case Ty_basicTy:
+        {
+            a = rank(ty1);
+            b = rank(ty2);
+            c = a>b ? a : b;
+            switch (c)
+            {
+                case 1: case 2: case 3: case 4: case 5:
+                    return Ty_VInt(Ty_RVAL);
+                case 6:
+                    return Ty_VUInt(Ty_RVAL);
+                case 7:
+                    return Ty_VLong(Ty_RVAL);
+                case 8:
+                    return Ty_VULong(Ty_RVAL);
+                case 9:
+                    return Ty_VLLong(Ty_RVAL);
+                case 10:
+                    return Ty_VULLong(Ty_RVAL);
+                case 11: case 12:
+                    return Ty_VDouble(Ty_RVAL);
+                case 13:
+                    return Ty_VLDouble(Ty_RVAL);
+                default:
+                    assert(0);
+            }
+        }
+        case Ty_pointerTy:
+        {
+            Ty_ty res = checked_malloc(sizeof(*res));
+            *res = *ty1;
+            res->specs = Ty_RVAL;
+            return res;
+        }
+        case Ty_arrayTy:
+            return Ty_PointerTy(ty1->u.arrayTy.ty, Ty_RVAL);
         default:
             assert(0);
     }

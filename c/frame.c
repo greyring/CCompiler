@@ -5,19 +5,20 @@
 #include "types.h"
 #include <string.h>
 
-#define REG(name) \
+#define REG(name, num) \
 static Temp_temp name ;\
 Temp_temp F_##name (void)\
 {\
     if ( name == NULL )\
-        name = Temp_newtemp();\
+        name = Temp_reg(num);\
     return name ;\
 }
 
-REG(FP);
-REG(SP);
-REG(RA);
-REG(V0);
+REG(FP, 30);
+REG(SP, 29);
+REG(GP, 28);
+REG(RA, 31);
+REG(V0, 2);
 
 static F_access InFrame(int offset, int size)
 {
@@ -87,12 +88,16 @@ F_frag F_ProcFrag(T_stm body, F_frame frame)
     return p;
 }
 
-F_access F_allocLocal(F_frame f, int escape, int size)
+F_access F_allocLocal(F_frame f, int escape, int align, int size)
 {
     //todo not escape
     F_access access = NULL;
-    access = InFrame(f->size, 4);//todo
-    f->size += 4;
+    if (f->size % align)
+    {
+        f->size = f->size - f->size % align + align;
+    }
+    access = InFrame(f->size, size);//todo
+    f->size += size;
     f->locals = F_AccessList(f->locals, access);
     return access;
 }

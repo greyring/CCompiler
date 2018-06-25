@@ -3,21 +3,30 @@
  *           basic blocks and traces.
  *
  */
-typedef struct C_stmListList_ *C_stmListList;
-struct C_block { C_stmListList stmLists; Temp_label label;};
-struct C_stmListList_ { T_stmList head; C_stmListList tail;};
+#ifndef _CANON_H_
+#define _CANON_H_
 
-//分成stm的集合
+typedef struct C_stmListList_ *C_stmListList;
+struct C_block
+{
+	C_stmListList stmLists;
+	Temp_label label;
+};
+struct C_stmListList_
+{
+	T_stmList head;
+	C_stmListList tail;
+};
+
 T_stmList C_linearize(T_stm stm);
-        /* From an arbitrary Tree statement, produce a list of cleaned trees
+/* From an arbitrary Tree statement, produce a list of cleaned trees
 	   satisfying the following properties:
 	      1.  No SEQ's or ESEQ's
 	      2.  The parent of every CALL is an EXP(..) or a MOVE(TEMP t,..)
         */
 
-//生成一个基本块
 struct C_block C_basicBlocks(T_stmList stmList);
-        /* basicBlocks : Tree.stm list -> (Tree.stm list list * Tree.label)
+/* basicBlocks : Tree.stm list -> (Tree.stm list list * Tree.label)
 	       From a list of cleaned trees, produce a list of
 	 basic blocks satisfying the following properties:
 	      1. and 2. as above;
@@ -29,9 +38,8 @@ struct C_block C_basicBlocks(T_stmList stmList);
            upon exit.
         */
 
-//将基本块加入块环境
 T_stmList C_traceSchedule(struct C_block b);
-         /* traceSchedule : Tree.stm list list * Tree.label -> Tree.stm list
+/* traceSchedule : Tree.stm list list * Tree.label -> Tree.stm list
             From a list of basic blocks satisfying properties 1-6,
             along with an "exit" label,
 	    produce a list of stms such that:
@@ -42,3 +50,4 @@ T_stmList C_traceSchedule(struct C_block b);
             as possible are eliminated by falling through into T.LABEL(lab).
          */
 
+#endif

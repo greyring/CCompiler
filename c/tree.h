@@ -78,7 +78,7 @@ struct T_stm_
 		{
 			T_relOp op;
 			T_exp left, right;
-			Temp_label t, f;
+			Temp_label true, false;
 		} CJUMP;
 		struct
 		{

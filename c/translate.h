@@ -107,7 +107,9 @@ Tr_access Tr_ConstAccess(int i);//alloc
 Tr_access Tr_ExternAccess(S_symbol sym);//alloc
 Tr_access Tr_StackAccess(Tr_level level, Ty_ty type);//alloc
 
+Tr_exp Tr_nil();
 Tr_exp Tr_simpleVar(Tr_level level, Tr_access access);
+Tr_exp Tr_varAddress(Tr_level level, Tr_access access);
 Tr_exp Tr_simpleFunc(Tr_level level);
 Tr_exp Tr_IntConst(int i);
 int Tr_getIntConst(Tr_exp intConst);
@@ -117,9 +119,12 @@ Tr_exp Tr_DoubleConst(double d);
 double Tr_getDoubleConst(Tr_exp doubleConst);
 Tr_exp Tr_strExp(string s);
 Tr_exp Tr_subExp(Tr_exp idExp, Tr_exp subExp, Tr_exp size);
+Tr_exp Tr_subExpAddr(Tr_exp idExp, Tr_exp subExp, Tr_exp size);
 Tr_exp Tr_funcCallExp(Tr_exp funcexp, Tr_expList expList);
 Tr_exp Tr_dotExp(Tr_exp structExp, int offset);
+Tr_exp Tr_dotAddrExp(Tr_exp structExp, int offset);
 Tr_exp Tr_pointExp(Tr_exp pointExp, int offset);
+Tr_exp Tr_pointAddrExp(Tr_exp pointExp, int offset);
 Tr_exp Tr_postppIntExp(Tr_exp intExp);
 Tr_exp Tr_postppPointerExp(Tr_exp pointerExp, Tr_exp size);
 Tr_exp Tr_postmmIntExp(Tr_exp intExp);

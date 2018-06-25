@@ -17,6 +17,7 @@ struct Temp_labelList_ { Temp_label head; Temp_labelList tail;};
 struct Temp_map_ {TAB_table tab; Temp_map under;};
 
 Temp_temp Temp_newtemp(void);
+Temp_temp Temp_reg(int num);
 Temp_tempList Temp_TempList(Temp_temp h, Temp_tempList t);
 
 Temp_label Temp_newlabel(void);

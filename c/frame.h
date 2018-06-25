@@ -54,11 +54,9 @@ struct F_fragList_ {
 };
 
 Temp_temp F_FP(void);
-
 Temp_temp F_SP(void);
-
+Temp_temp F_GP(void);
 Temp_temp F_RA(void);
-
 Temp_temp F_V0(void);
 
 
@@ -67,7 +65,7 @@ F_fragList F_FragList(F_fragList list, F_frag frag);
 
 F_frame F_newFrame(Temp_label name, Ty_fieldList formals);
 F_frag F_ProcFrag(T_stm body, F_frame frame);
-F_access F_allocLocal(F_frame f, int escape, int size);
+F_access F_allocLocal(F_frame f, int escape, int align, int size);
 F_access F_allocStr(F_frame f, string s);
 
 F_accessList F_formals(F_frame frame);
