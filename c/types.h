@@ -154,6 +154,7 @@ unsigned long Ty_isSimpleType(Ty_spec spec);
 int Ty_isVoidTy(Ty_ty ty);
 int Ty_isBasicCTy(Ty_ty ty);
 int Ty_isIntTy(Ty_ty ty);
+int Ty_isIntCTy(Ty_ty ty);
 int Ty_isRealTy(Ty_ty ty);
 int Ty_isArithTy(Ty_ty ty);
 int Ty_isScalarTy(Ty_ty ty);
@@ -169,7 +170,7 @@ int Ty_isCompleteTy(Ty_ty ty);
 void Ty_calcASC(Ty_ty type);
 Ty_dec Ty_specdec(Ty_spec spec, Ty_dec dec);
 
-
+Ty_ty Ty_BasicTy(Ty_spec spec);
 Ty_ty Ty_ForwardTy(Ty_ty ty);//init incomplete
 Ty_ty Ty_NameTy(Ty_ty ty);
 Ty_ty Ty_BitTy(Ty_ty ty, int bitSize);
@@ -197,5 +198,7 @@ Ty_ty Ty_plusminusTy(Ty_ty ty1, Ty_ty ty2);
 Ty_ty Ty_lrshiftTy(Ty_ty ty1, Ty_ty ty2);
 Ty_ty Ty_bitwiseTy(Ty_ty ty1, Ty_ty ty2);
 Ty_ty Ty_logicTy(Ty_ty ty1, Ty_ty ty2);
+
+Ty_ty Ty_Array2Pointer(Ty_ty ty);
 
 #endif

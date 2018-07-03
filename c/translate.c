@@ -391,16 +391,14 @@ Tr_exp Tr_strExp(string s)
 
 Tr_exp Tr_subExp(Tr_exp idExp, Tr_exp subExp, Tr_exp size)
 {
-    T_exp offset = unEx(subExp);
-    offset = T_Binop(T_mul, offset, unEx(size));
-    return Tr_Ex(T_Mem(T_Binop(T_plus, unEx(idExp), offset)));
+    Tr_exp offset = Tr_Binop(Tr_MULINT, subExp, size);
+    return Tr_Ex(T_Mem(unEx(Tr_Binop(Tr_PLUSINT, idExp, offset))));
 }
 
 Tr_exp Tr_subExpAddr(Tr_exp idExp, Tr_exp subExp, Tr_exp size)
 {
-    T_exp offset = unEx(subExp);
-    offset = T_Binop(T_mul, offset, unEx(size));
-    return Tr_Ex(T_Binop(T_plus, unEx(idExp), offset));
+    Tr_exp offset = Tr_Binop(Tr_MULINT, subExp, size);
+    return Tr_Binop(Tr_PLUSINT, idExp, offset);
 }
 
 Tr_exp Tr_funcCallExp(Tr_exp funcexp, Tr_expList expList)
@@ -411,12 +409,12 @@ Tr_exp Tr_funcCallExp(Tr_exp funcexp, Tr_expList expList)
 
 Tr_exp Tr_dotExp(Tr_exp structExp, int offset)
 {
-    return Tr_Ex(T_Mem(T_Binop(T_plus, unEx(structExp), T_Const(offset))));
+    return Tr_Ex(T_Mem(unEx(Tr_Binop(Tr_PLUSINT, structExp, Tr_Ex(T_Const(offset))))));
 }
 
 Tr_exp Tr_dotAddrExp(Tr_exp structExp, int offset)
 {
-    return Tr_Ex(T_Binop(T_plus, unEx(structExp), T_Const(offset)));
+    return Tr_Binop(Tr_PLUSINT, structExp, Tr_Ex(T_Const(offset)));
 }
 
 Tr_exp Tr_pointExp(Tr_exp pointExp, int offset)
@@ -555,61 +553,151 @@ Tr_exp Tr_sizeof(Ty_ty type)
     return type->size.exp;
 }
 
-Tr_exp Tr_CBinop(Tr_binop op, Tr_exp exp1, Tr_exp exp2)
-{
-    int a, b;
-    a = Tr_getIntConst(exp1);
-    b = Tr_getIntConst(exp2);
-    switch(op)
-    {
-        case Tr_MULINT:
-            return Tr_IntConst(a*b);
-        case Tr_DIVINT:
-            return Tr_IntConst(a/b);
-        case Tr_MODINT: 
-            return Tr_IntConst(a%b);
-        case Tr_PLUSINT:
-            return Tr_IntConst(a+b);
-        case Tr_SUBINT:
-            return Tr_IntConst(a-b);
-        case Tr_XORINT:
-            return Tr_IntConst(a^b);
-        case Tr_ORINT:
-            return Tr_IntConst(a|b);
-        case Tr_ANDINT:
-            return Tr_IntConst(a&b);
-        case Tr_LSINT:
-            return Tr_IntConst(a<<b);
-        case Tr_RSINT:
-            return Tr_IntConst(a>>b);
-        default:
-            assert(0);
-    }
-}
-
 Tr_exp Tr_Binop(Tr_binop op, Tr_exp exp1, Tr_exp exp2)
 {
     switch(op)
     {
         case Tr_MULINT:
+            if (unEx(exp2)->kind == T_CONST)
+            {
+                int b = Tr_getIntConst(exp2);
+                T_exp temp = unEx(exp1);
+                if (temp->kind == T_CONST)
+                    return Tr_IntConst(Tr_getIntConst(exp1) * b);
+                if (temp->kind == T_BINOP && temp->u.BINOP.op == T_mul)
+                {
+                    if (temp->u.BINOP.left->kind == T_CONST)
+                        return Tr_Ex(T_Binop(T_mul, T_Const(temp->u.BINOP.left->u.CONST * b), temp->u.BINOP.right));
+                    if (temp->u.BINOP.right->kind == T_CONST)
+                        return Tr_Ex(T_Binop(T_mul, temp->u.BINOP.left, T_Const(temp->u.BINOP.right->u.CONST * b)));
+                }
+            }
             return Tr_Ex(T_Binop(T_mul, unEx(exp1), unEx(exp2)));
         case Tr_DIVINT:
+            if (unEx(exp2)->kind == T_CONST)
+            {
+                int b = Tr_getIntConst(exp2);
+                T_exp temp = unEx(exp1);
+                if (temp->kind == T_CONST)
+                    return Tr_IntConst(Tr_getIntConst(exp1) / b);
+            }
             return Tr_Ex(T_Binop(T_div, unEx(exp1), unEx(exp2)));
         case Tr_MODINT: 
+            if (unEx(exp2)->kind == T_CONST)
+            {
+                int b = Tr_getIntConst(exp2);
+                T_exp temp = unEx(exp1);
+                if (temp->kind == T_CONST)
+                    return Tr_IntConst(Tr_getIntConst(exp1) % b);
+            }
             return Tr_Ex(T_Binop(T_minus, unEx(exp1), T_Binop(T_mul, unEx(exp2), T_Binop(T_div, unEx(exp1), unEx(exp2)))));
         case Tr_PLUSINT:
+            if (unEx(exp2)->kind == T_CONST)
+            {
+                int b = Tr_getIntConst(exp2);
+                T_exp temp = unEx(exp1);
+                if (temp->kind == T_CONST)
+                    return Tr_IntConst(Tr_getIntConst(exp1) + b);
+                if (temp->kind == T_BINOP && temp->u.BINOP.op == T_plus)
+                {
+                    if (temp->u.BINOP.left->kind == T_CONST)
+                        return Tr_Ex(T_Binop(T_plus, T_Const(temp->u.BINOP.left->u.CONST + b), temp->u.BINOP.right));
+                    if (temp->u.BINOP.right->kind == T_CONST)
+                        return Tr_Ex(T_Binop(T_plus, temp->u.BINOP.left, T_Const(temp->u.BINOP.right->u.CONST + b)));
+                }
+            }
             return Tr_Ex(T_Binop(T_plus, unEx(exp1), unEx(exp2)));
         case Tr_SUBINT:
+            if (unEx(exp2)->kind == T_CONST)
+            {
+                int b = Tr_getIntConst(exp2);
+                T_exp temp = unEx(exp1);
+                if (temp->kind == T_CONST)
+                    return Tr_IntConst(Tr_getIntConst(exp1) - b);
+                if (temp->kind == T_BINOP && temp->u.BINOP.op == T_minus)
+                {
+                    if (temp->u.BINOP.left->kind == T_CONST)
+                        return Tr_Ex(T_Binop(T_minus, T_Const(temp->u.BINOP.left->u.CONST - b), temp->u.BINOP.right));
+                    if (temp->u.BINOP.right->kind == T_CONST)
+                        return Tr_Ex(T_Binop(T_minus, temp->u.BINOP.left, T_Const(temp->u.BINOP.right->u.CONST - b)));
+                }
+            }
             return Tr_Ex(T_Binop(T_minus, unEx(exp1), unEx(exp2)));
         case Tr_XORINT:
+            if (unEx(exp2)->kind == T_CONST)
+            {
+                int b = Tr_getIntConst(exp2);
+                T_exp temp = unEx(exp1);
+                if (temp->kind == T_CONST)
+                    return Tr_IntConst(Tr_getIntConst(exp1) ^ b);
+                if (temp->kind == T_BINOP && temp->u.BINOP.op == T_xor)
+                {
+                    if (temp->u.BINOP.left->kind == T_CONST)
+                        return Tr_Ex(T_Binop(T_xor, T_Const(temp->u.BINOP.left->u.CONST ^ b), temp->u.BINOP.right));
+                    if (temp->u.BINOP.right->kind == T_CONST)
+                        return Tr_Ex(T_Binop(T_xor, temp->u.BINOP.left, T_Const(temp->u.BINOP.right->u.CONST ^ b)));
+                }
+            }
             return Tr_Ex(T_Binop(T_xor, unEx(exp1), unEx(exp2)));
         case Tr_ORINT:
+            if (unEx(exp2)->kind == T_CONST)
+            {
+                int b = Tr_getIntConst(exp2);
+                T_exp temp = unEx(exp1);
+                if (temp->kind == T_CONST)
+                    return Tr_IntConst(Tr_getIntConst(exp1) | b);
+                if (temp->kind == T_BINOP && temp->u.BINOP.op == T_or)
+                {
+                    if (temp->u.BINOP.left->kind == T_CONST)
+                        return Tr_Ex(T_Binop(T_or, T_Const(temp->u.BINOP.left->u.CONST | b), temp->u.BINOP.right));
+                    if (temp->u.BINOP.right->kind == T_CONST)
+                        return Tr_Ex(T_Binop(T_or, temp->u.BINOP.left, T_Const(temp->u.BINOP.right->u.CONST | b)));
+                }
+            }
             return Tr_Ex(T_Binop(T_or, unEx(exp1), unEx(exp2)));
         case Tr_ANDINT:
+            if (unEx(exp2)->kind == T_CONST)
+            {
+                int b = Tr_getIntConst(exp2);
+                T_exp temp = unEx(exp1);
+                if (temp->kind == T_CONST)
+                    return Tr_IntConst(Tr_getIntConst(exp1) & b);
+                if (temp->kind == T_BINOP && temp->u.BINOP.op == T_and)
+                {
+                    if (temp->u.BINOP.left->kind == T_CONST)
+                        return Tr_Ex(T_Binop(T_and, T_Const(temp->u.BINOP.left->u.CONST & b), temp->u.BINOP.right));
+                    if (temp->u.BINOP.right->kind == T_CONST)
+                        return Tr_Ex(T_Binop(T_and, temp->u.BINOP.left, T_Const(temp->u.BINOP.right->u.CONST & b)));
+                }
+            }
             return Tr_Ex(T_Binop(T_and, unEx(exp1), unEx(exp2)));
         case Tr_LSINT:
+            if (unEx(exp2)->kind == T_CONST)
+            {
+                int b = Tr_getIntConst(exp2);
+                T_exp temp = unEx(exp1);
+                if (temp->kind == T_CONST)
+                    return Tr_IntConst(Tr_getIntConst(exp1) << b);
+                if (temp->kind == T_BINOP && temp->u.BINOP.op == T_lshift)
+                {
+                    if (temp->u.BINOP.left->kind == T_CONST)
+                        return Tr_Ex(T_Binop(T_lshift, T_Const(temp->u.BINOP.left->u.CONST << b), temp->u.BINOP.right));
+                }
+            }
             return Tr_Ex(T_Binop(T_lshift, unEx(exp1), unEx(exp2)));
         case Tr_RSINT:
+            if (unEx(exp2)->kind == T_CONST)
+            {
+                int b = Tr_getIntConst(exp2);
+                T_exp temp = unEx(exp1);
+                if (temp->kind == T_CONST)
+                    return Tr_IntConst(Tr_getIntConst(exp1) >> b);
+                if (temp->kind == T_BINOP && temp->u.BINOP.op == T_rshift)
+                {
+                    if (temp->u.BINOP.left->kind == T_CONST)
+                        return Tr_Ex(T_Binop(T_rshift, T_Const(temp->u.BINOP.left->u.CONST >> b), temp->u.BINOP.right));
+                }
+            }
             return Tr_Ex(T_Binop(T_rshift, unEx(exp1), unEx(exp2)));
         default:
             assert(0);
@@ -662,6 +750,20 @@ Tr_exp Tr_Relop(Tr_relop op, Tr_exp exp1, Tr_exp exp2)
 
 Tr_exp Tr_assignExp(Tr_exp var, Tr_exp exp)
 {
+    if (exp->kind == Tr_ex)
+    {
+        if (exp->u.ex->kind == T_ESEQ)
+        {
+            if (exp->u.ex->u.ESEQ.exp->kind == T_TEMP)
+                return Tr_Ex(T_Eseq(T_Seq(unNx(exp), T_Move(unEx(var), exp->u.ex->u.ESEQ.exp)), exp->u.ex->u.ESEQ.exp));
+            if (exp->u.ex->u.ESEQ.exp->kind == T_CONST)
+                return Tr_Ex(T_Eseq(T_Seq(unNx(exp), T_Move(unEx(var), exp->u.ex->u.ESEQ.exp)), exp->u.ex->u.ESEQ.exp));
+        }
+        if (exp->u.ex->kind == T_TEMP)
+            return Tr_Ex(T_Eseq(T_Move(unEx(var), unEx(exp)), unEx(exp)));
+        if (exp->u.ex->kind == T_CONST)
+            return Tr_Ex(T_Eseq(T_Move(unEx(var), unEx(exp)), unEx(exp)));
+    }
     Temp_temp t = Temp_newtemp();
     return Tr_Ex(T_Eseq(T_Seq(T_Move(T_Temp(t), unEx(exp)), T_Move(unEx(var), T_Temp(t))), T_Temp(t)));
 }
@@ -828,8 +930,13 @@ Tr_exp Tr_forexpStat(Tr_exp exp1, Temp_label test, Tr_exp body, Tr_exp exp3, Tem
 Tr_exp Tr_returnStat(Tr_level level, Tr_exp returnExp)
 {
     T_stm res = NULL;
-    res = T_Move(T_Temp(F_V0()), unEx(returnExp));
-    res = T_Seq(res, T_Jump(T_Name(level->frame->end), Temp_LabelList(level->frame->end, NULL)));
+    if (returnExp)
+    {
+        res = T_Move(T_Temp(F_V0()), unEx(returnExp));
+        res = T_Seq(res, T_Jump(T_Name(level->frame->end), Temp_LabelList(level->frame->end, NULL)));
+    }
+    else
+        res = T_Jump(T_Name(level->frame->end), Temp_LabelList(level->frame->end, NULL));
     return Tr_Nx(res);
 }
 

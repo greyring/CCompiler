@@ -255,8 +255,8 @@ enumerator_list:
     | enumerator_list COMMA_MARK enumerator     {$$ = _A_seq_init(charPos, $1, $3);}
     ;
 enumerator:
-      IDENTIFIER                                {$$ = _A_enumtype_init(charPos, _S_symbol($1), NULL);}
-    | IDENTIFIER CMP_EQ constant_expression     {$$ = _A_enumtype_init(charPos, _S_symbol($1), $3);}
+      IDENTIFIER CAL_EQ constant_expression     {$$ = _A_enumtype_init(charPos, _S_symbol($1), $3);}
+    | IDENTIFIER                                {$$ = _A_enumtype_init(charPos, _S_symbol($1), NULL);}
     ;
 type_qualifier:
       KEY_CONST         {$$ = _A_qual_type_spec(charPos, A_CONST);}
@@ -404,10 +404,10 @@ iteration_statement:
     | KEY_FOR LPAREN SEMIC_MARK expression SEMIC_MARK RPAREN statement                          {$$ = _A_forexp_stat(charPos, NULL, $4, NULL, $7);}
     | KEY_FOR LPAREN SEMIC_MARK SEMIC_MARK expression RPAREN statement                          {$$ = _A_forexp_stat(charPos, NULL, NULL, $5, $7);}
     | KEY_FOR LPAREN SEMIC_MARK SEMIC_MARK RPAREN statement                                     {$$ = _A_forexp_stat(charPos, NULL, NULL, NULL, $6);}
-    | KEY_FOR LPAREN declaration SEMIC_MARK expression SEMIC_MARK expression RPAREN statement   {$$ = _A_fordec_stat(charPos, $3, $5, $7, $9);}
-    | KEY_FOR LPAREN declaration SEMIC_MARK expression SEMIC_MARK RPAREN statement              {$$ = _A_fordec_stat(charPos, $3, $5, NULL, $8);}
-    | KEY_FOR LPAREN declaration SEMIC_MARK SEMIC_MARK expression RPAREN statement              {$$ = _A_fordec_stat(charPos, $3, NULL, $6, $8);}
-    | KEY_FOR LPAREN declaration SEMIC_MARK SEMIC_MARK RPAREN statement                         {$$ = _A_fordec_stat(charPos, $3, NULL, NULL, $7);}
+    | KEY_FOR LPAREN declaration expression SEMIC_MARK expression RPAREN statement              {$$ = _A_fordec_stat(charPos, $3, $4, $6, $8);}
+    | KEY_FOR LPAREN declaration expression SEMIC_MARK RPAREN statement                         {$$ = _A_fordec_stat(charPos, $3, $4, NULL, $7);}
+    | KEY_FOR LPAREN declaration SEMIC_MARK expression RPAREN statement                         {$$ = _A_fordec_stat(charPos, $3, NULL, $5, $7);}
+    | KEY_FOR LPAREN declaration SEMIC_MARK RPAREN statement                                    {$$ = _A_fordec_stat(charPos, $3, NULL, NULL, $6);}
     ;
 jump_statement:
       KEY_GOTO IDENTIFIER SEMIC_MARK    {$$ = _A_gotostat_stat(charPos, _S_symbol($2));}
